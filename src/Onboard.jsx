@@ -81,7 +81,7 @@ export function Onboard({ onLocal, onInjected, hasEth, toast }) {
 }
 
 export function Unlock({ onUnlock, onForget, onInjected, hasEth }) {
-  const [pw, setPw] = useState(''), [p, setP] = useState(null), [err, setErr] = useState(''), [remember, setRemember] = useState(false), [busy, setBusy] = useState(false)
+  const [pw, setPw] = useState(''), [p, setP] = useState(null), [err, setErr] = useState(''), [busy, setBusy] = useState(false)
   const finishPayload = async (payload) => {
     if (payload.kind === 'vault') {
       const root = await unlockVault(payload.password, setP)
@@ -96,10 +96,6 @@ export function Unlock({ onUnlock, onForget, onInjected, hasEth }) {
     setErr(''); setP(0)
     try {
       const root = await unlockVault(pw, setP)
-      if (remember) {
-        try { await enableBiometricSession({ kind: 'vault', password: pw }) }
-        catch (e) { setErr('Wallet unlocked, but biometric login could not be enabled: ' + e.message) }
-      }
       onUnlock(deriveAccounts(root, getVault().count))
     } catch { setErr('Wrong password. Try again.'); setP(null) }
   }
@@ -112,12 +108,22 @@ export function Unlock({ onUnlock, onForget, onInjected, hasEth }) {
   return (
     <section className="view on mid">
       <Logo size={60} /><h1>Welcome back</h1>
-      {hasBiometricSession() && <button className="pri" disabled={busy} onClick={biometric}><Icon n="shield" /> {busy ? 'Verifying…' : 'Unlock with biometrics'}</button>}
+      {hasBiometricSession() && (
+        <button
+          type="button"
+          className="pri biometric-unlock"
+          onClick={biometric}
+          disabled={busy}
+          aria-busy={busy}
+        >
+          <Icon n="shield" />
+          <span>{busy ? 'Verifying…' : 'Unlock with biometrics'}</span>
+        </button>
+      )}
       <p className="mute">Or unlock with your wallet password.</p>
       <input type="password" autoFocus value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && go()} placeholder="Password" />
       {err && <div className="note warn">{err}</div>}
       {p !== null ? <Progress p={p} /> : <button className="pri" onClick={go}>Unlock</button>}
-      <label className="check"><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Enable biometric quick login on this device</label>
       {hasEth && <button className="sec" onClick={onInjected}>Use browser wallet instead</button>}
       <button className="link" onClick={onForget}>Forget this wallet</button>
     </section>
