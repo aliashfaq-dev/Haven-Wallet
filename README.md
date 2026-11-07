@@ -1,41 +1,37 @@
 # Haven Wallet (React + Vite)
 
-    npm install
-    npm run server    # terminal 1: Etherscan API proxy on http://localhost:8787
-    npm run dev       # terminal 2: Vite app at http://localhost:5173
-    npm run build     # static site in dist/
+## Local development
 
-Login: private key (memory only), encrypted local wallet (password), or browser wallet. Asset/network support is restricted to USDC on Ethereum Sepolia (chain ID 11155111).
+```bash
+npm install
+npm run server
+npm run dev
+```
 
-Features: multiple accounts (create, rename, import key, export key, remove), token list (add by contract, hide, restore,
-remove, token detail), custom networks and RPC overrides, send with gas speed, custom fees, nonce and ENS names,
-speed up / cancel pending transactions, activity filters and details, USD value, hide balances, QR receive,
-address book, message and EIP-712 signing, auto-lock, light and dark themes.
+The Vite dev server proxies `/api/*` to the local Express API on port 8787.
+Set `ETHERSCAN_API_KEY` in a local `.env` file (never commit it).
 
-Security: use testnets or small amounts. Anyone with access to your unlocked browser session can spend the funds.
+## Vercel deployment
 
-## Live updates
-While logged in, the app watches the chain every few seconds. Funds sent to your address (native coin and ERC-20 tokens) show up in
-Activity right away, the balance flashes, an unread badge appears on Activity and, if enabled, a desktop notification is sent.
-Pending transactions flip to Confirmed automatically.
+This project is configured for Vercel as a Vite frontend plus a Node.js
+Serverless Function at `/api/transactions`.
 
-## Showing private keys
-Viewing an account's private key always asks for your password again (the wallet password, or a security password you set for
-private-key sessions). The key hides itself after 30 seconds.
+- Framework preset: Vite
+- Build command: `npm run build`
+- Output directory: `dist`
+- Install command: `npm install`
+- Environment variable: `ETHERSCAN_API_KEY` (Production, Preview as needed)
 
+Do not add the API key as a `VITE_*` variable. Vite variables are exposed to
+browser code. The API key belongs only in Vercel's server-side environment.
 
-## Etherscan transaction history
+The transaction history endpoint reads Sepolia native ETH transfers and USDC
+ERC-20 transfers through Etherscan API V2. Wallet signing and transaction
+broadcasting still happen locally through the connected wallet/RPC; this
+serverless endpoint only reads indexed history.
 
-USDC Sepolia ERC-20 transfers are read from Etherscan API V2 through the
-server-side Express endpoint at `/api/transactions`. The API key is not bundled
-into browser JavaScript.
+## Wallet features and security
 
-1. Copy `.env.example` to `.env` and set `ETHERSCAN_API_KEY` to a newly generated key.
-2. Run `npm install`.
-3. Start the API proxy with `npm run server`.
-4. In another terminal run `npm run dev`.
-
-For production, deploy `server.js` as a backend service and route `/api/*` to it.
-Never put the key in a `VITE_` variable or commit `.env`. Signed USDC transfers
-are broadcast through the connected Sepolia wallet/RPC; Etherscan indexes and
-displays history, it does not custody funds or broadcast transactions.
+Haven is a self-custody testnet wallet. Private keys are handled in the browser;
+never enter a mainnet private key into a test application. Use testnet funds only.
+Anyone with access to an unlocked browser session may be able to spend its funds.
