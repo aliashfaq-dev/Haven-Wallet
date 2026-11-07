@@ -333,3 +333,25 @@ input, select, textarea, button { -webkit-tap-highlight-color: transparent; }
     transition-duration: .01ms !important;
   }
 }
+
+
+/* Biometric unlock action: keep icon and label centered as one control. */
+.view.mid > .biometric-unlock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: min(100%, 420px);
+  min-height: 48px;
+  margin-inline: auto;
+  text-align: center;
+}
+.view.mid > .biometric-unlock > svg {
+  display: block;
+  flex: 0 0 auto;
+  margin: 0;
+}
+.view.mid > .biometric-unlock > span {
+  display: block;
+  line-height: 1.25;
+}
