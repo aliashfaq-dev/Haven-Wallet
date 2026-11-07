@@ -8,6 +8,7 @@ import Settings from './Settings.jsx'
 import Accounts from './Accounts.jsx'
 import Networks from './Networks.jsx'
 import { scanBlocks } from './live.js'
+import { hasBiometricSession, clearBiometricSession } from './biometric.js'
 
 const fmt = (v, d = 4) => (+v).toLocaleString(undefined, { maximumFractionDigits: d })
 const NAV = [['home', 'Assets', 'wallet'], ['activity', 'Activity', 'act'], ['accounts', 'Accounts', 'users'], ['networks', 'Networks', 'globe'], ['settings', 'Settings', 'set']]
@@ -19,7 +20,7 @@ export default function App() {
   const [theme, setTheme] = useState(() => load('orbit:theme', 'light'))
   useEffect(() => { document.documentElement.dataset.theme = theme; save('orbit:theme', theme) }, [theme])
   const [mode, setMode] = useState(null)
-  const [view, setView] = useState(getVault() ? 'unlock' : 'onboard')
+  const [view, setView] = useState(getVault() || hasBiometricSession() ? 'unlock' : 'onboard')
   const [chain, setChain] = useState('0xaa36a7')
   const [accts, setAccts] = useState(null), [idx, setIdx] = useState(0)
   const [names, setNames] = useState(() => load('orbit:names', {})), [imported, setImported] = useState([])
@@ -67,9 +68,9 @@ export default function App() {
     setW({ mode: 'local', p, s, a: s.address, chain })
   }, [mode, accts, idx, chain, cfg.rpc])
   const onLocal = (list) => { setAccts(list); setIdx(0); setImported([]); setMode('local'); setView('home') }
-  const lock = useCallback(() => { setAccts(null); setW(null); setMode(null); setIdx(0); setImported([]); setMenu(false); setView(getVault() ? 'unlock' : 'onboard') }, [])
-  const disconnect = () => { setW(null); setMode(null); setView(getVault() ? 'unlock' : 'onboard') }
-  const forget = () => { if (window.confirm('Remove this wallet from the browser? You will need your recovery phrase to restore it.')) { clearVault(); lock(); setView('onboard') } }
+  const lock = useCallback(() => { setAccts(null); setW(null); setMode(null); setIdx(0); setImported([]); setMenu(false); setView(getVault() || hasBiometricSession() ? 'unlock' : 'onboard') }, [])
+  const disconnect = () => { setW(null); setMode(null); setView(getVault() || hasBiometricSession() ? 'unlock' : 'onboard') }
+  const forget = () => { if (window.confirm('Remove this wallet from the browser? You will need your recovery phrase to restore it.')) { clearVault(); clearBiometricSession(); lock(); setView('onboard') } }
   useEffect(() => {
     if (mode !== 'local' || !accts || !cfg.lock) return
     let t; const reset = () => { clearTimeout(t); t = setTimeout(lock, cfg.lock * 60000) }
