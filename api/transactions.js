@@ -32,7 +32,7 @@ export default async function handler(req, res) {
       etherscan(address, { action: 'txlist', startblock: '0', endblock: '99999999' }, apiKey),
       etherscan(address, { action: 'tokentx', contractaddress: USDC }, apiKey),
     ])
-    const nativeRows = native.map(tx => ({
+    const nativeRows = native.filter(tx => BigInt(tx.value || '0') > 0n).map(tx => ({
       hash: tx.hash, from: tx.from, to: tx.to, amount: formatEther(BigInt(tx.value || '0')),
       timestamp: Number(tx.timeStamp || 0), nonce: tx.nonce, sym: 'SepoliaETH',
       status: tx.isError === '1' || tx.txreceipt_status === '0' ? 'Failed' : 'Confirmed',
