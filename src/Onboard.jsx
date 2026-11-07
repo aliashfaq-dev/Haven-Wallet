@@ -3,19 +3,10 @@ import { Wallet, HDNodeWallet, Mnemonic } from 'ethers'
 import { createVault, unlockVault, deriveAccounts, getVault } from './wallet.js'
 import { Progress, Icon, Logo } from './ui.jsx'
 
-export function Onboard({ onLocal, onInjected, onGoogleAuth, hasEth, toast }) {
+export function Onboard({ onLocal, onInjected, hasEth, toast }) {
   const [step, setStep] = useState('choose')
   const [pw, setPw] = useState(''), [pw2, setPw2] = useState(''), [secret, setSecret] = useState('')
   const [fresh, setFresh] = useState(null), [ok, setOk] = useState(false), [p, setP] = useState(null), [pk, setPk] = useState('')
-  const [googleUser, setGoogleUser] = useState(null), [googleBusy, setGoogleBusy] = useState(false), [googleErr, setGoogleErr] = useState('')
-  const googleLogin = async () => {
-    if (!onGoogleAuth || googleBusy) return
-    setGoogleBusy(true); setGoogleErr('')
-    try { setGoogleUser(await onGoogleAuth()); setStep('google') }
-    catch (e) { setGoogleErr(e.message || 'Google sign-in failed') }
-    finally { setGoogleBusy(false) }
-  }
-
   const pwOk = () => (pw.length >= 8 && pw === pw2) || (toast('Passwords must match and be at least 8 characters'), false)
   const finish = async (wal) => {
     setP(0)
@@ -53,26 +44,11 @@ export function Onboard({ onLocal, onInjected, onGoogleAuth, hasEth, toast }) {
     <section className="view on mid">
       <Logo size={60} />
       <h1>Your keys. Your funds.</h1>
-      <p className="mute">Choose how you want to sign in and connect your wallet.</p>
-      <button className="pri google-btn" onClick={googleLogin} disabled={googleBusy}><span className="google-mark">G</span>{googleBusy ? 'Connecting to Google…' : 'Continue with Google'}</button>
-      {googleErr && <div className="note warn">{googleErr}</div>}
-      <div className="auth-divider"><span>OR</span></div>
+      <p className="mute">Choose how you want to access your wallet.</p>
       <button className="sec" onClick={() => setStep('pk')}><Icon n="key" /> Login with private key</button>
       <button className="sec" onClick={() => setStep('create')}><Icon n="plus" /> Create new wallet</button>
       <button className="sec" onClick={() => setStep('import')}><Icon n="shield" /> Import and encrypt with password</button>
       <button className="link" disabled={!hasEth} onClick={onInjected}>{hasEth ? 'Connect browser wallet instead' : 'No browser wallet detected'}</button>
-    </section>
-  )
-  if (step === 'google') return (
-    <section className="view on mid">
-      <Logo size={60} />
-      <h2>Google account connected</h2>
-      <p className="mute">{googleUser?.email || 'Your Google account'} is signed in. Now choose which wallet to use.</p>
-      <div className="note">Google verifies your account, but it does not contain your Ethereum private key. Your wallet stays encrypted on this device.</div>
-      <button className="pri" onClick={() => setStep('create')}><Icon n="plus" /> Create a new wallet</button>
-      <button className="sec" onClick={() => setStep('import')}><Icon n="shield" /> Import recovery phrase or key</button>
-      <button className="sec" onClick={() => setStep('pk')}><Icon n="key" /> Use private key for this session</button>
-      <button className="link" onClick={() => setStep('choose')}>Back</button>
     </section>
   )
   if (step === 'pk') return (
