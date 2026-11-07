@@ -106,3 +106,15 @@ header{padding:10px clamp(12px,2vw,24px)}
 html,body,#root{width:100%;height:100%;margin:0!important;padding:0!important;display:block!important;max-width:none!important}
 .app,.app.solo{position:fixed!important;inset:0!important;width:auto!important;height:auto!important;max-width:none!important;margin:0!important;border:0!important;border-radius:0!important;box-shadow:none!important}
 [data-theme=light]{color-scheme:light}[data-theme=dark]{color-scheme:dark}
+
+
+/* ---------- consistent button and icon alignment ---------- */
+.view button,.sheet button{align-items:center;justify-content:center}
+.view button svg,.sheet button svg,.side button svg{display:block;flex:0 0 auto}
+.view .btns{justify-content:center;align-items:center}
+.view.on>button:not(.back){align-self:center;justify-self:center;width:min(100%,420px)}
+.side button{justify-content:center;align-items:center}
+.google-btn{gap:10px}
+.google-mark{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#fff;color:#4285f4;font-weight:700;font-family:Arial,sans-serif;font-size:15px;line-height:1}
+.auth-divider{display:flex;align-items:center;gap:12px;width:100%;color:var(--mute);font-size:11px;letter-spacing:.08em}
+.auth-divider:before,.auth-divider:after{content:"";height:1px;background:var(--line);flex:1}
