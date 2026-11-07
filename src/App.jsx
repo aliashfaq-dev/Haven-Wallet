@@ -136,10 +136,10 @@ export default function App() {
         }
         if (!res.ok) throw new Error(payload.error || `History unavailable (HTTP ${res.status})`)
         const entries = (payload.transactions || []).map((x) => ({
-          hash: x.hash, from: x.from, to: x.to, amt: x.amount, sym: 'USDC',
+          hash: x.hash, from: x.from, to: x.to, amt: x.amount, sym: x.sym || 'USDC',
           dir: x.from.toLowerCase() === w.a.toLowerCase() ? 'out' : 'in',
           chain: '0xaa36a7', st: x.status || 'Confirmed', ts: x.timestamp * 1000,
-          nonce: Number(x.nonce), token: { address: DEFAULT_TOKENS['0xaa36a7'][0].address, decimals: 6 }
+          nonce: Number(x.nonce), token: x.sym === 'SepoliaETH' ? undefined : { address: DEFAULT_TOKENS['0xaa36a7'][0].address, decimals: 6 }
         }))
         if (!dead) setHist((old) => {
           const byHash = new Map(old.map((x) => [x.hash, x]))
