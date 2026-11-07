@@ -45,9 +45,9 @@ export function Onboard({ onLocal, onInjected, hasEth, toast }) {
       <Logo size={60} />
       <h1>Your keys. Your funds.</h1>
       <p className="mute">Choose how you want to access your wallet.</p>
-      <button className="sec" onClick={() => setStep('pk')}><Icon n="key" /> Login with private key</button>
-      <button className="sec" onClick={() => setStep('create')}><Icon n="plus" /> Create new wallet</button>
-      <button className="sec" onClick={() => setStep('import')}><Icon n="shield" /> Import and encrypt with password</button>
+      <button className="sec auth-choice" onClick={() => setStep('pk')}><span className="auth-choice__inner"><Icon n="key" /><span>Login with private key</span></span></button>
+      <button className="sec auth-choice" onClick={() => setStep('create')}><span className="auth-choice__inner"><Icon n="plus" /><span>Create new wallet</span></span></button>
+      <button className="sec auth-choice" onClick={() => setStep('import')}><span className="auth-choice__inner"><Icon n="shield" /><span>Import and encrypt with password</span></span></button>
       <button className="link" disabled={!hasEth} onClick={onInjected}>{hasEth ? 'Connect browser wallet instead' : 'No browser wallet detected'}</button>
     </section>
   )
