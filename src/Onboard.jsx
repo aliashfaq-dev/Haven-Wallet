@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Wallet, HDNodeWallet, Mnemonic } from 'ethers'
 import { createVault, unlockVault, deriveAccounts, getVault } from './wallet.js'
 import { Progress, Icon, Logo } from './ui.jsx'
-import { enableBiometricSession, unlockWithBiometrics } from './biometric.js'
+import { enableBiometricSession, unlockWithBiometrics, hasBiometricSession } from './biometric.js'
 
 export function Onboard({ onLocal, onInjected, hasEth, toast }) {
   const [step, setStep] = useState('choose')
