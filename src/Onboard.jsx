@@ -2,21 +2,22 @@ import { useState } from 'react'
 import { Wallet, HDNodeWallet, Mnemonic } from 'ethers'
 import { createVault, unlockVault, deriveAccounts, getVault } from './wallet.js'
 import { Progress, Icon, Logo } from './ui.jsx'
+import { enableBiometricSession, hasBiometricSession, unlockWithBiometrics } from './biometric.js'
 
 export function Onboard({ onLocal, onInjected, hasEth, toast }) {
   const [step, setStep] = useState('choose')
   const [pw, setPw] = useState(''), [pw2, setPw2] = useState(''), [secret, setSecret] = useState('')
-  const [fresh, setFresh] = useState(null), [ok, setOk] = useState(false), [p, setP] = useState(null), [pk, setPk] = useState('')
+  const [fresh, setFresh] = useState(null), [ok, setOk] = useState(false), [p, setP] = useState(null), [pk, setPk] = useState(''), [remember, setRemember] = useState(false)
   const pwOk = () => (pw.length >= 8 && pw === pw2) || (toast('Passwords must match and be at least 8 characters'), false)
   const finish = async (wal) => {
     setP(0)
-    try { await createVault(wal, pw, setP); onLocal([wal]) } catch { toast('Could not encrypt the wallet'); setP(null) }
+    try { await createVault(wal, pw, setP); if (remember) { try { await enableBiometricSession({ kind: 'vault', password: pw }) } catch (e) { toast('Wallet saved; biometric login unavailable: ' + e.message) } } onLocal([wal]) } catch { toast('Could not encrypt the wallet'); setP(null) }
   }
   const create = () => { if (pwOk()) { setFresh(Wallet.createRandom()); setStep('phrase') } }
-  const loginPk = () => {
+  const loginPk = async () => {
     const s = pk.trim()
     if (!/^(0x)?[0-9a-fA-F]{64}$/.test(s)) return toast('Enter a valid 64-character private key')
-    try { onLocal([new Wallet(s.startsWith('0x') ? s : '0x' + s)]) } catch { toast('Invalid private key') }
+    try { const privateKey = s.startsWith('0x') ? s : '0x' + s; if (remember) { try { await enableBiometricSession({ kind: 'privateKey', privateKey }) } catch (e) { toast('Biometric login unavailable: ' + e.message) } } onLocal([new Wallet(privateKey)]) } catch { toast('Invalid private key') }
   }
   const doImport = () => {
     if (!pwOk()) return
@@ -54,12 +55,14 @@ export function Onboard({ onLocal, onInjected, hasEth, toast }) {
   if (step === 'pk') return (
     <section className="view on"><button className="back" onClick={() => setStep('choose')}><Icon n="back" s={16} /> Back</button><h2>Login with private key</h2>
       <div><label>Private key</label><input type="password" autoComplete="off" value={pk} onChange={(e) => setPk(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && loginPk()} placeholder="0x…" /></div>
-      <div className="note warn">The key stays in this tab’s memory only and is never saved or sent anywhere. Refreshing the page logs you out. Use a test wallet or small amounts.</div>
+      <div className="note warn">Without biometric login, the key stays in this tab’s memory only. If enabled, it is encrypted locally using this device’s WebAuthn credential; it is never sent to a server.</div>
+      <label className="check"><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Enable biometric login on this device</label>
       <button className="pri" onClick={loginPk}>Login</button></section>
   )
   if (step === 'create') return (
     <section className="view on"><button className="back" onClick={() => setStep('choose')}><Icon n="back" s={16} /> Back</button><h2>Create a password</h2>
       <p className="mute">It encrypts your wallet on this device. It can’t be reset, so keep it safe.</p>{pwFields}
+      <label className="check"><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Enable biometric quick login</label>
       <button className="pri" onClick={create}>Continue</button></section>
   )
   if (step === 'phrase') return (
@@ -73,23 +76,48 @@ export function Onboard({ onLocal, onInjected, hasEth, toast }) {
     <section className="view on"><button className="back" onClick={() => setStep('choose')}><Icon n="back" s={16} /> Back</button><h2>Import wallet</h2>
       <div><label>Recovery phrase or private key</label><textarea rows="3" value={secret} onChange={(e) => setSecret(e.target.value)} placeholder="word1 word2 … or 0x…" /></div>
       <div className="note warn">Prefer a fresh wallet funded with small amounts or testnet coins. Never import a key that holds large savings into any website.</div>
-      {pwFields}<button className="pri" onClick={doImport}>Import and encrypt</button></section>
+      {pwFields}<label className="check"><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Enable biometric quick login</label><button className="pri" onClick={doImport}>Import and encrypt</button></section>
   )
 }
 
 export function Unlock({ onUnlock, onForget, onInjected, hasEth }) {
-  const [pw, setPw] = useState(''), [p, setP] = useState(null), [err, setErr] = useState('')
+  const [pw, setPw] = useState(''), [p, setP] = useState(null), [err, setErr] = useState(''), [remember, setRemember] = useState(false), [busy, setBusy] = useState(false)
+  const finishPayload = async (payload) => {
+    if (payload.kind === 'vault') {
+      const root = await unlockVault(payload.password, setP)
+      onUnlock(deriveAccounts(root, getVault().count))
+    } else if (payload.kind === 'privateKey') {
+      onUnlock([new Wallet(payload.privateKey)])
+    } else {
+      throw new Error('Saved biometric session is invalid')
+    }
+  }
   const go = async () => {
     setErr(''); setP(0)
-    try { const root = await unlockVault(pw, setP); onUnlock(deriveAccounts(root, getVault().count)) }
-    catch { setErr('Wrong password. Try again.'); setP(null) }
+    try {
+      const root = await unlockVault(pw, setP)
+      if (remember) {
+        try { await enableBiometricSession({ kind: 'vault', password: pw }) }
+        catch (e) { setErr('Wallet unlocked, but biometric login could not be enabled: ' + e.message) }
+      }
+      onUnlock(deriveAccounts(root, getVault().count))
+    } catch { setErr('Wrong password. Try again.'); setP(null) }
+  }
+  const biometric = async () => {
+    setErr(''); setBusy(true)
+    try { await finishPayload(await unlockWithBiometrics()) }
+    catch (e) { setErr(e.message || 'Biometric verification failed') }
+    finally { setBusy(false); setP(null) }
   }
   return (
     <section className="view on mid">
       <Logo size={60} /><h1>Welcome back</h1>
+      {hasBiometricSession() && <button className="pri" disabled={busy} onClick={biometric}><Icon n="shield" /> {busy ? 'Verifying…' : 'Unlock with biometrics'}</button>}
+      <p className="mute">Or unlock with your wallet password.</p>
       <input type="password" autoFocus value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && go()} placeholder="Password" />
       {err && <div className="note warn">{err}</div>}
       {p !== null ? <Progress p={p} /> : <button className="pri" onClick={go}>Unlock</button>}
+      <label className="check"><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Enable biometric quick login on this device</label>
       {hasEth && <button className="sec" onClick={onInjected}>Use browser wallet instead</button>}
       <button className="link" onClick={onForget}>Forget this wallet</button>
     </section>
