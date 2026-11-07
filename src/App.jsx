@@ -8,7 +8,6 @@ import Settings from './Settings.jsx'
 import Accounts from './Accounts.jsx'
 import Networks from './Networks.jsx'
 import { scanBlocks } from './live.js'
-import { signInWithGoogle } from './firebase.js'
 
 const fmt = (v, d = 4) => (+v).toLocaleString(undefined, { maximumFractionDigits: d })
 const NAV = [['home', 'Assets', 'wallet'], ['activity', 'Activity', 'act'], ['accounts', 'Accounts', 'users'], ['networks', 'Networks', 'globe'], ['settings', 'Settings', 'set']]
@@ -36,7 +35,6 @@ export default function App() {
   const tt = useRef()
   histRef.current = hist; cfgRef.current = cfg; balRef.current = bal
   const toast = (m) => { setMsg(m); clearTimeout(tt.current); tt.current = setTimeout(() => setMsg(''), 3200) }
-  const googleAuth = async () => signInWithGoogle()
   const bump = () => setNv((n) => n + 1)
   const net = w && (NETS[w.chain] || { name: 'Chain ' + parseInt(w.chain, 16), sym: 'ETH', scan: '' })
   const allTokens = w?.chain === '0xaa36a7' ? DEFAULT_TOKENS['0xaa36a7'] : []
@@ -287,7 +285,7 @@ export default function App() {
               </aside>
               <div className="formside">
                 {view === 'onboard'
-                  ? <Onboard onLocal={onLocal} onInjected={connectInj} onGoogleAuth={googleAuth} hasEth={!!eth} toast={toast} />
+                  ? <Onboard onLocal={onLocal} onInjected={connectInj} hasEth={!!eth} toast={toast} />
                   : <Unlock onUnlock={onLocal} onForget={forget} onInjected={connectInj} hasEth={!!eth} />}
               </div>
             </div>
