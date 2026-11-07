@@ -8,7 +8,11 @@ import Settings from './Settings.jsx'
 import Accounts from './Accounts.jsx'
 import Networks from './Networks.jsx'
 import { scanBlocks } from './live.js'
-import { hasBiometricSession, clearBiometricSession } from './biometric.js'
+
+const hasBiometricSession = () => {
+  try { return !!JSON.parse(localStorage.getItem('haven:biometric-session') || 'null') } catch { return false }
+}
+const clearBiometricSession = () => { try { localStorage.removeItem('haven:biometric-session') } catch {} }
 
 const fmt = (v, d = 4) => (+v).toLocaleString(undefined, { maximumFractionDigits: d })
 const NAV = [['home', 'Assets', 'wallet'], ['activity', 'Activity', 'act'], ['accounts', 'Accounts', 'users'], ['networks', 'Networks', 'globe'], ['settings', 'Settings', 'set']]
