@@ -30,6 +30,7 @@ export async function enableBiometricSession(payload) {
       authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'preferred' },
       timeout: 60000,
       attestation: 'none',
+      extensions: { prf: { eval: { first: salt } } },
     },
   })
   if (!credential) throw new Error('Biometric setup was cancelled')
