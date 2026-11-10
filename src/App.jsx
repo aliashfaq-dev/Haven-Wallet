@@ -29,7 +29,7 @@ export default function App() {
   const [accts, setAccts] = useState(null), [idx, setIdx] = useState(0)
   const [names, setNames] = useState(() => load('orbit:names', {})), [imported, setImported] = useState([])
   const [w, setW] = useState(null), [bal, setBal] = useState('0'), [rows, setRows] = useState(null)
-  const [custom, setCustom] = useState([]), [hid, setHidS] = useState([]), [hist, setHist] = useState([])
+  const [custom, setCustom] = useState(() => load('tok:0xaa36a7', [])), [hid, setHidS] = useState([]), [hist, setHist] = useState([])
   const [contacts, setContacts] = useState(() => load('orbit:contacts', []))
   const [tick, setTick] = useState(0), [nv, setNv] = useState(0), [menu, setMenu] = useState(false), [msg, setMsg] = useState('')
   const [price, setPrice] = useState(null), [gas, setGas] = useState(null)
