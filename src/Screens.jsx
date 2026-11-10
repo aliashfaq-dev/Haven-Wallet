@@ -56,8 +56,8 @@ export function Send({ w, net, tokens, rows, bal, cfg, setCfg, contacts, go, toa
         sym = net.sym || 'SepoliaETH'
         tx = await w.s.sendTransaction({ to: dest, value: parsed, ...o })
       } else {
-        if (!tok || tok.symbol !== 'USDC' || tok.decimals !== 6) throw new Error('Only Sepolia USDC is supported as a token')
-        sym = 'USDC'
+        if (!tok) throw new Error('Select a valid token contract')
+        sym = tok.symbol
         tx = await new Contract(tok.address, ERC20, w.s).transfer(dest, parsed, o)
       }
       addTx({ hash: tx.hash, to: dest, amt, sym, chain: w.chain, st: 'Pending', nonce: tx.nonce, ts: Date.now(), raw: rawOf(tx) })
@@ -77,7 +77,7 @@ export function Send({ w, net, tokens, rows, bal, cfg, setCfg, contacts, go, toa
       <div><label>Asset</label>
         <select value={asset} onChange={(e) => { setAsset(e.target.value); setAmt('') }}>
           <option value="native">SepoliaETH (ETH)</option>
-          {tokens.filter((t) => t.symbol === 'USDC' && t.decimals === 6).map((t) => <option key={t.address} value={tokens.indexOf(t)}>USDC · Sepolia</option>)}
+          {tokens.map((t) => <option key={t.address} value={tokens.indexOf(t)}>{t.symbol} · Sepolia</option>)}
         </select></div>
       <div><label>Recipient address</label><input value={to} onChange={(e) => setTo(e.target.value)} placeholder="Paste wallet address (0x…)" autoComplete="off" /><button className="scan-qr-btn" type="button" onClick={() => setScanning(true)}>▦ Scan recipient QR code</button>
         {contacts.length > 0 && <div className="chips">{contacts.map((c) => <button key={c.address} className="cc" onClick={() => setTo(c.address)}>{c.name}</button>)}</div>}</div>
