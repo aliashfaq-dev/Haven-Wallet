@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Contract, isAddress, getAddress, formatEther, parseEther, parseUnits } from 'ethers'
 import QRCode from 'qrcode'
+import QrScanner from './QrScanner.jsx'
 import { ERC20, NETS, short, save, feeOverrides, rawOf } from './wallet.js'
 import { Back, Seg, Sheet, Toggle } from './ui.jsx'
 
@@ -8,7 +9,7 @@ export function Send({ w, net, tokens, rows, bal, cfg, setCfg, contacts, go, toa
   const [asset, setAsset] = useState(() => { const i = pre ? tokens.findIndex((t) => t.address === pre) : 0; return String(Math.max(0, i)) }), [to, setTo] = useState(''), [amt, setAmt] = useState('')
   const [adv, setAdv] = useState(false), [mf, setMf] = useState(''), [pf, setPf] = useState(''), [nonce, setNonce] = useState('')
   const [speed, setSpeed] = useState('normal'), [fee, setFee] = useState(null)
-  const [review, setReview] = useState(false), [skip, setSkip] = useState(false), [busy, setBusy] = useState(false)
+  const [review, setReview] = useState(false), [skip, setSkip] = useState(false), [busy, setBusy] = useState(false), [scanning, setScanning] = useState(false)
   const tok = asset === 'native' ? null : tokens[+asset]
   const valid = isAddress(to.trim()) || /\.eth$/i.test(to.trim())
   const parsed = useMemo(() => { try { return tok ? parseUnits(amt || '0', tok.decimals) : parseEther(amt || '0') } catch { return null } }, [amt, tok])
@@ -81,7 +82,7 @@ export function Send({ w, net, tokens, rows, bal, cfg, setCfg, contacts, go, toa
           <option value="native">SepoliaETH (ETH)</option>
           {tokens.filter((t) => t.symbol === 'USDC' && t.decimals === 6).map((t) => <option key={t.address} value={tokens.indexOf(t)}>USDC · Sepolia</option>)}
         </select></div>
-      <div><label>To</label><input value={to} onChange={(e) => setTo(e.target.value)} placeholder="0x…" autoComplete="off" />
+      <div><label>To</label><div className="inrow"><input value={to} onChange={(e) => setTo(e.target.value)} placeholder="0x…" autoComplete="off" /><button type="button" onClick={() => setScanning(true)}>Scan QR</button></div>
         {contacts.length > 0 && <div className="chips">{contacts.map((c) => <button key={c.address} className="cc" onClick={() => setTo(c.address)}>{c.name}</button>)}</div>}</div>
       <div><div className="split"><label>Available balance</label><b>{tok ? (rows?.find((x) => x.address.toLowerCase() === tok.address.toLowerCase())?.raw || '0') + ' ' + tok.symbol : bal + ' ETH'}</b></div><label>Amount</label><div className="inrow"><input value={amt} onChange={(e) => setAmt(e.target.value)} inputMode="decimal" placeholder="0.0" /><button onClick={max}>Max</button></div></div>
       <div><label>Speed</label><Seg v={speed} set={setSpeed} opts={[['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast']]} /></div>
@@ -89,6 +90,23 @@ export function Send({ w, net, tokens, rows, bal, cfg, setCfg, contacts, go, toa
       {adv && <div className="group"><div className="inrow"><input value={mf} onChange={(e) => setMf(e.target.value)} placeholder="Max fee (gwei)" /><input value={pf} onChange={(e) => setPf(e.target.value)} placeholder="Priority fee (gwei)" /></div><input value={nonce} onChange={(e) => setNonce(e.target.value)} placeholder="Nonce (empty = automatic)" /></div>}
       <div className="note">Estimated network fee: {feeTxt}</div>
       <button className="pri" disabled={busy} onClick={submit}>{busy ? 'Sending…' : w.mode === 'local' ? (cfg.quick ? 'Send now' : 'Review and send') : 'Send with wallet'}</button>
+      {scanning && <QrScanner onClose={() => setScanning(false)} onResult={(raw) => {
+        try {
+          let recipient = raw.trim(), amount = '', assetCode = 'native', chainId = 11155111;
+          if (recipient.toLowerCase().startsWith('ethereum:')) {
+            const body = recipient.slice(9); const parts = body.split('?'); const head = parts[0]; const query = new URLSearchParams(parts[1] || '');
+            const match = head.match(/^([^/@]+)(?:@(\\d+))?(?:\\/(transfer))?$/);
+            if (!match) throw new Error('Invalid Ethereum QR');
+            chainId = Number(match[2] || 11155111);
+            if (match[3] === 'transfer') { recipient = query.get('address') || ''; assetCode = 'usdc'; const rawAmount = query.get('uint256'); amount = rawAmount ? (Number(rawAmount) / 1e6).toString() : ''; }
+            else { recipient = match[1]; const rawAmount = query.get('value'); amount = rawAmount ? (Number(rawAmount) / 1e18).toString() : ''; }
+          }
+          if (chainId !== 11155111) throw new Error('This QR is not for Ethereum Sepolia');
+          if (!isAddress(recipient)) throw new Error('QR does not contain a valid recipient address');
+          if (assetCode === 'usdc') { const index = tokens.findIndex(t => t.symbol === 'USDC' && t.decimals === 6); if (index < 0) throw new Error('Sepolia USDC is unavailable'); setAsset(String(index)); } else setAsset('native');
+          setTo(recipient); if (amount) setAmt(amount); setScanning(false); toast('QR payment details filled');
+        } catch (e) { toast(e.message || 'Unsupported QR code'); }
+      }} />}
       <Sheet open={review} onClose={() => setReview(false)}>
         <h2>Review transaction</h2>
         <div className="kv"><span>From</span><b>{short(w.a)}</b><span>To</span><b>{short(to.trim() || '0x0000000000000000')}</b>
