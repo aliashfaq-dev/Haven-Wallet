@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { BrowserProvider, JsonRpcProvider, Contract, Wallet, formatEther, formatUnits } from 'ethers'
-import { NETS, DEFAULT_TOKENS, ERC20, short, load, save, getVault, clearVault, addParams, deriveAt, setVaultCount, usdPrice, rawOf } from './wallet.js'
+import { NETS, DEFAULT_TOKENS, ERC20, short, load, save, getVault, clearVault, addParams, deriveAt, setVaultCount, usdPrice, rawOf, restoreVaultAccounts, getSavedImported, removeSavedImported } from './wallet.js'
 import { Icon, Logo, Sheet, Seg } from './ui.jsx'
 import { Onboard, Unlock } from './Onboard.jsx'
 import { Send, Receive, ImportToken } from './Screens.jsx'
@@ -71,7 +71,7 @@ export default function App() {
     const s = accts[idx].connect(p)
     setW({ mode: 'local', p, s, a: s.address, chain })
   }, [mode, accts, idx, chain, cfg.rpc])
-  const onLocal = (list) => { setAccts(list); setIdx(0); setImported([]); setMode('local'); setView('home') }
+  const onLocal = (list) => { setAccts(list); setIdx(0); setImported(list.filter((a) => getSavedImported().some((x) => x.address.toLowerCase() === a.address.toLowerCase())).map((a) => a.address)); setMode('local'); setView('home') }
   const lock = useCallback(() => { setAccts(null); setW(null); setMode(null); setIdx(0); setImported([]); setMenu(false); setView(getVault() || hasBiometricSession() ? 'unlock' : 'onboard') }, [])
   const disconnect = () => { setW(null); setMode(null); setView(getVault() || hasBiometricSession() ? 'unlock' : 'onboard') }
   const forget = () => { if (window.confirm('Remove this wallet from the browser? You will need your recovery phrase to restore it.')) { clearVault(); clearBiometricSession(); lock(); setView('onboard') } }
@@ -85,14 +85,22 @@ export default function App() {
   /* ---- accounts ---- */
   const derivedCount = accts ? accts.filter((a) => !imported.includes(a.address)).length : 0
   const addDerived = () => { setAccts([...accts, deriveAt(accts[0], derivedCount)]); if (getVault()) setVaultCount(derivedCount + 1); setIdx(accts.length); toast('Account created') }
-  const importKey = (s) => {
+  const importKey = async (s, password) => {
     s = s.trim()
     if (!/^(0x)?[0-9a-fA-F]{64}$/.test(s)) return toast('Enter a valid 64-character private key')
     const a = new Wallet(s.startsWith('0x') ? s : '0x' + s)
     if (accts.some((x) => x.address === a.address)) return toast('That account is already added')
-    setAccts([...accts, a]); setImported([...imported, a.address]); setIdx(accts.length); toast('Account imported'); return true
+    try {
+      await (async () => {
+        if (getVault()) {
+          const { saveImportedAccount } = await import('./wallet.js')
+          await saveImportedAccount(a, password)
+        } else throw new Error('Extra account saving requires an encrypted wallet. Import or create a wallet with a password first.')
+      })()
+    } catch (e) { toast(e.message); return false }
+    setAccts([...accts, a]); setImported([...imported, a.address]); setIdx(accts.length); toast('Account saved securely'); return true
   }
-  const removeAcct = (i) => { const a = accts[i]; setAccts(accts.filter((_, j) => j !== i)); setImported(imported.filter((x) => x !== a.address)); if (idx >= i) setIdx(Math.max(0, idx - 1)) }
+  const removeAcct = async (i) => { const a = accts[i]; if (imported.includes(a.address)) await removeSavedImported(a.address); setAccts(accts.filter((_, j) => j !== i)); setImported(imported.filter((x) => x !== a.address)); if (idx >= i) setIdx(Math.max(0, idx - 1)) }
 
   const switchNet = async (id) => {
     if (mode === 'local') { setChain(id); save('orbit:chain', id); return }
