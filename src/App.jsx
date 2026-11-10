@@ -351,7 +351,8 @@ export default function App() {
           )}
 
           {w && view === 'send' && <Send {...{ w, net, tokens, rows, bal, cfg, setCfg, contacts, toast, addTx, patch, refresh, pre }} go={setView} />}
-          {w && view === 'receive' && <Receive w={w} net={net} go={setView} toast={toast} />}\n          {w && view === 'import-token' && <ImportToken w={w} go={setView} toast={toast} custom={custom} setCustom={setCustom} />}
+          {w && view === 'receive' && <Receive w={w} net={net} go={setView} toast={toast} />}
+          {w && view === 'import-token' && <ImportToken w={w} go={setView} toast={toast} custom={custom} setCustom={setCustom} />}
           
           {w && view === 'accounts' && <Accounts {...{ w, sym: net.sym, mode, accts, idx, setIdx, names, setNames, imported, addDerived, importKey, removeAcct, toast }} canDerive={!!accts?.[0]?.mnemonic} />}
           {w && view === 'networks' && <Networks {...{ w, mode, cfg, setCfg, switchNet, bump, toast }} />}
