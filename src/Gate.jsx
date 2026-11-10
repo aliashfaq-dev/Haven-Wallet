@@ -13,7 +13,7 @@ export default function Gate({ open, onClose, onPass, toast, why }) {
         if (pw.length < 8 || pw !== pw2) { toast('Passwords must match and be at least 8 characters'); return }
         await setSecPw(pw)
       } else if (!(await checkPw(pw))) { toast('Wrong password'); setPw(''); return }
-      setPw(''); setPw2(''); onPass()
+      const acceptedPassword = pw; setPw(''); setPw2(''); onPass(acceptedPassword)
     } catch { toast('Could not verify the password in this browser') }
     finally { setBusy(false) }
   }
