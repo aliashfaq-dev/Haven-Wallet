@@ -7,7 +7,7 @@ import { Back, Seg, Sheet, Toggle } from './ui.jsx'
 
 export function Send({ w, net, tokens, rows, bal, cfg, setCfg, contacts, go, toast, addTx, patch, refresh, pre }) {
   const [asset, setAsset] = useState(() => { const i = pre ? tokens.findIndex((t) => t.address === pre) : 0; return String(Math.max(0, i)) }), [to, setTo] = useState(''), [amt, setAmt] = useState('')
-  const [adv, setAdv] = useState(false), [mf, setMf] = useState(''), [pf, setPf] = useState(''), [nonce, setNonce] = useState('')
+  
   const [speed, setSpeed] = useState('normal'), [fee, setFee] = useState(null)
   const [review, setReview] = useState(false), [skip, setSkip] = useState(false), [busy, setBusy] = useState(false), [scanning, setScanning] = useState(false)
   const tok = asset === 'native' ? null : tokens[+asset]
@@ -50,10 +50,7 @@ export function Send({ w, net, tokens, rows, bal, cfg, setCfg, contacts, go, toa
     try {
       const o = await feeOverrides(w.p, speed); let dest = to.trim()
       if (/\.eth$/i.test(dest)) { dest = await w.p.resolveName(dest); if (!dest) throw new Error('ENS name not found on this network') }
-      if (mf) o.maxFeePerGas = parseUnits(mf, 'gwei')
-      if (pf) o.maxPriorityFeePerGas = parseUnits(pf, 'gwei')
-      if (nonce !== '') o.nonce = +nonce
-      let tx, sym
+            let tx, sym
       if (w.chain !== '0xaa36a7') throw new Error('Please connect to Sepolia first')
       if (asset === 'native') {
         sym = net.sym || 'SepoliaETH'
@@ -82,12 +79,10 @@ export function Send({ w, net, tokens, rows, bal, cfg, setCfg, contacts, go, toa
           <option value="native">SepoliaETH (ETH)</option>
           {tokens.filter((t) => t.symbol === 'USDC' && t.decimals === 6).map((t) => <option key={t.address} value={tokens.indexOf(t)}>USDC · Sepolia</option>)}
         </select></div>
-      <div><label>To</label><div className="inrow"><input value={to} onChange={(e) => setTo(e.target.value)} placeholder="0x…" autoComplete="off" /><button type="button" onClick={() => setScanning(true)}>Scan QR</button></div>
+      <div><label>Recipient address</label><input value={to} onChange={(e) => setTo(e.target.value)} placeholder="Paste wallet address (0x…)" autoComplete="off" /><button className="scan-qr-btn" type="button" onClick={() => setScanning(true)}>▦ Scan recipient QR code</button>
         {contacts.length > 0 && <div className="chips">{contacts.map((c) => <button key={c.address} className="cc" onClick={() => setTo(c.address)}>{c.name}</button>)}</div>}</div>
-      <div><div className="split"><label>Available balance</label><b>{tok ? (rows?.find((x) => x.address.toLowerCase() === tok.address.toLowerCase())?.raw || '0') + ' ' + tok.symbol : bal + ' ETH'}</b></div><label>Amount</label><div className="inrow"><input value={amt} onChange={(e) => setAmt(e.target.value)} inputMode="decimal" placeholder="0.0" /><button onClick={max}>Max</button></div></div>
-      <div><label>Speed</label><Seg v={speed} set={setSpeed} opts={[['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast']]} /></div>
-      <button className="link left" onClick={() => setAdv(!adv)}>{adv ? 'Hide' : 'Show'} advanced options</button>
-      {adv && <div className="group"><div className="inrow"><input value={mf} onChange={(e) => setMf(e.target.value)} placeholder="Max fee (gwei)" /><input value={pf} onChange={(e) => setPf(e.target.value)} placeholder="Priority fee (gwei)" /></div><input value={nonce} onChange={(e) => setNonce(e.target.value)} placeholder="Nonce (empty = automatic)" /></div>}
+      <div className="send-balance"><span>Available {tok ? tok.symbol : 'SepoliaETH'} balance</span><strong>{tok ? (rows?.find((x) => x.address.toLowerCase() === tok.address.toLowerCase())?.raw || '0') + ' ' + tok.symbol : bal + ' ETH'}</strong></div><div><label>Amount</label><div className="inrow"><input value={amt} onChange={(e) => setAmt(e.target.value)} inputMode="decimal" placeholder="0.0" /><button onClick={max}>Max</button></div></div>
+      <div><label>Network fee priority</label><Seg v={speed} set={setSpeed} opts={ [['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast']] } /></div>
       <div className="note">Estimated network fee: {feeTxt}</div>
       <button className="pri" disabled={busy} onClick={submit}>{busy ? 'Sending…' : w.mode === 'local' ? (cfg.quick ? 'Send now' : 'Review and send') : 'Send with wallet'}</button>
       {scanning && <QrScanner onClose={() => setScanning(false)} onResult={(raw) => {
