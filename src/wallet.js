@@ -24,6 +24,36 @@ const VAULT = 'orbit:vault'
 export const getVault = () => load(VAULT, null)
 export const clearVault = () => { try { localStorage.removeItem(VAULT) } catch {} }
 export const setVaultCount = (count) => save(VAULT, { ...getVault(), count })
+export const getSavedImported = () => getVault()?.imported || []
+export async function saveImportedAccount(wallet, password) {
+  const vault = getVault()
+  if (!vault?.json) throw new Error('Create or import an encrypted wallet with a password before saving extra accounts.')
+  const account = {
+    address: wallet.address,
+    privateKey: wallet.privateKey,
+    mnemonic: wallet.mnemonic ? { path: wallet.path, locale: 'en', entropy: wallet.mnemonic.entropy } : undefined,
+  }
+  const encrypted = await encryptKeystoreJson(account, password, { scrypt: { N: 2 ** 16 } })
+  const imported = [...(vault.imported || [])]
+  if (imported.some((x) => x.address.toLowerCase() === wallet.address.toLowerCase())) throw new Error('That account is already saved.')
+  imported.push({ address: wallet.address, json: encrypted })
+  save(VAULT, { ...vault, imported })
+}
+export async function removeSavedImported(address) {
+  const vault = getVault()
+  if (!vault) return
+  save(VAULT, { ...vault, imported: (vault.imported || []).filter((x) => x.address.toLowerCase() !== address.toLowerCase()) })
+}
+export async function restoreVaultAccounts(root, password) {
+  const vault = getVault()
+  const extra = []
+  for (const item of vault?.imported || []) {
+    const wallet = await Wallet.fromEncryptedJson(item.json, password)
+    if (wallet.address.toLowerCase() !== item.address.toLowerCase()) throw new Error('Saved account integrity check failed.')
+    extra.push(wallet)
+  }
+  return [...deriveAccounts(root, vault?.count || 1), ...extra]
+}
 
 export async function createVault(wal, password, progressCallback) {
   const account = {
@@ -34,15 +64,42 @@ export async function createVault(wal, password, progressCallback) {
   save(VAULT, { json, count: 1 })
 }
 export const unlockVault = (password, progress) => Wallet.fromEncryptedJson(getVault().json, password, progress)
+export async function changeVaultPassword(currentPassword, nextPassword) {
+  const vault = getVault()
+  if (!vault?.json) throw new Error('No password-encrypted wallet is available.')
+  const root = await unlockVault(currentPassword)
+  const imported = []
+  for (const item of vault.imported || []) {
+    const wallet = await Wallet.fromEncryptedJson(item.json, currentPassword)
+    imported.push({
+      address: wallet.address,
+      json: await encryptKeystoreJson({ address: wallet.address, privateKey: wallet.privateKey }, nextPassword, { scrypt: { N: 2 ** 16 } }),
+    })
+  }
+  const account = {
+    address: root.address, privateKey: root.privateKey,
+    mnemonic: root.mnemonic ? { path: root.path, locale: 'en', entropy: root.mnemonic.entropy } : undefined,
+  }
+  const json = await encryptKeystoreJson(account, nextPassword, { scrypt: { N: 2 ** 16 } })
+  save(VAULT, { ...vault, json, imported })
+  return true
+}
 export const deriveAt = (root, i) => HDNodeWallet.fromMnemonic(root.mnemonic, `m/44'/60'/0'/0/${i}`)
 export const deriveAccounts = (root, count) =>
   !root.mnemonic ? [root] : Array.from({ length: count }, (_, i) => (i === 0 ? root : deriveAt(root, i)))
 
 export async function feeOverrides(p, speed) {
   const fd = await p.getFeeData()
-  const m = { slow: 90n, normal: 100n, fast: 130n }[speed]
-  if (fd.maxFeePerGas) return { maxFeePerGas: (fd.maxFeePerGas * m) / 100n, maxPriorityFeePerGas: ((fd.maxPriorityFeePerGas ?? 0n) * m) / 100n }
-  return { gasPrice: (fd.gasPrice * m) / 100n }
+  const m = { slow: 90n, normal: 100n, fast: 130n }[speed] ?? 100n
+  if (fd.maxFeePerGas != null) {
+    const priority = fd.maxPriorityFeePerGas ?? 0n
+    return {
+      maxFeePerGas: (fd.maxFeePerGas * m) / 100n,
+      maxPriorityFeePerGas: (priority * m) / 100n,
+    }
+  }
+  if (fd.gasPrice != null) return { gasPrice: (fd.gasPrice * m) / 100n }
+  throw new Error('The network did not return a usable gas price. Try again in a moment.')
 }
 
 export const addNet = (id, n) => { NETS[id] = n; save('orbit:nets', { ...load('orbit:nets', {}), [id]: n }) }

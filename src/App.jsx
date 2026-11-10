@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { BrowserProvider, JsonRpcProvider, Contract, Wallet, formatEther, formatUnits } from 'ethers'
-import { NETS, DEFAULT_TOKENS, ERC20, short, load, save, getVault, clearVault, addParams, deriveAt, setVaultCount, usdPrice, rawOf } from './wallet.js'
+import { BrowserProvider, JsonRpcProvider, Contract, Wallet, HDNodeWallet, Mnemonic, formatEther, formatUnits } from 'ethers'
+import { NETS, DEFAULT_TOKENS, ERC20, short, load, save, getVault, clearVault, addParams, deriveAt, setVaultCount, usdPrice, rawOf, restoreVaultAccounts, getSavedImported, removeSavedImported, saveImportedAccount } from './wallet.js'
 import { Icon, Logo, Sheet, Seg } from './ui.jsx'
 import { Onboard, Unlock } from './Onboard.jsx'
 import { Send, Receive, ImportToken } from './Screens.jsx'
 import Settings from './Settings.jsx'
-import Accounts from './Accounts.jsx'
+import Accounts, { WalletActions } from './Accounts.jsx'
 import Networks from './Networks.jsx'
 import { scanBlocks } from './live.js'
 
@@ -29,7 +29,7 @@ export default function App() {
   const [accts, setAccts] = useState(null), [idx, setIdx] = useState(0)
   const [names, setNames] = useState(() => load('orbit:names', {})), [imported, setImported] = useState([])
   const [w, setW] = useState(null), [bal, setBal] = useState('0'), [rows, setRows] = useState(null)
-  const [custom, setCustom] = useState([]), [hid, setHidS] = useState([]), [hist, setHist] = useState([])
+  const [custom, setCustom] = useState(() => load('tok:0xaa36a7', [])), [hid, setHidS] = useState([]), [hist, setHist] = useState([])
   const [contacts, setContacts] = useState(() => load('orbit:contacts', []))
   const [tick, setTick] = useState(0), [nv, setNv] = useState(0), [menu, setMenu] = useState(false), [msg, setMsg] = useState('')
   const [price, setPrice] = useState(null), [gas, setGas] = useState(null)
@@ -43,7 +43,7 @@ export default function App() {
   const bump = () => setNv((n) => n + 1)
   const net = w && (NETS[w.chain] || { name: 'Chain ' + parseInt(w.chain, 16), sym: 'ETH', scan: '' })
   const allTokens = w?.chain === '0xaa36a7' ? DEFAULT_TOKENS['0xaa36a7'] : []
-  const tokens = allTokens
+  const tokens = [...allTokens, ...custom.filter((t) => !allTokens.some((d) => d.address.toLowerCase() === t.address.toLowerCase()))]
   const acctName = (a, i) => names[a] || 'Account ' + (i + 1)
 
   /* ---- browser wallet ---- */
@@ -71,7 +71,7 @@ export default function App() {
     const s = accts[idx].connect(p)
     setW({ mode: 'local', p, s, a: s.address, chain })
   }, [mode, accts, idx, chain, cfg.rpc])
-  const onLocal = (list) => { setAccts(list); setIdx(0); setImported([]); setMode('local'); setView('home') }
+  const onLocal = (list) => { setAccts(list); setIdx(0); setImported(list.filter((a) => getSavedImported().some((x) => x.address.toLowerCase() === a.address.toLowerCase())).map((a) => a.address)); setMode('local'); setView('home') }
   const lock = useCallback(() => { setAccts(null); setW(null); setMode(null); setIdx(0); setImported([]); setMenu(false); setView(getVault() || hasBiometricSession() ? 'unlock' : 'onboard') }, [])
   const disconnect = () => { setW(null); setMode(null); setView(getVault() || hasBiometricSession() ? 'unlock' : 'onboard') }
   const forget = () => { if (window.confirm('Remove this wallet from the browser? You will need your recovery phrase to restore it.')) { clearVault(); clearBiometricSession(); lock(); setView('onboard') } }
@@ -85,14 +85,60 @@ export default function App() {
   /* ---- accounts ---- */
   const derivedCount = accts ? accts.filter((a) => !imported.includes(a.address)).length : 0
   const addDerived = () => { setAccts([...accts, deriveAt(accts[0], derivedCount)]); if (getVault()) setVaultCount(derivedCount + 1); setIdx(accts.length); toast('Account created') }
-  const importKey = (s) => {
+  const createIndependentAccount = async (password) => {
+    const account = Wallet.createRandom()
+    try {
+      await saveImportedAccount(account, password)
+      setAccts((current) => [...current, account])
+      setImported((current) => [...current, account.address])
+      setIdx(accts.length)
+      toast('New account created and encrypted')
+      return true
+    } catch (error) {
+      toast(error.message || 'Could not save the new account')
+      return false
+    }
+  }
+  const importRecoveryPhrase = async (value, password) => {
+    const phrase = value.trim().toLowerCase().replace(/\\s+/g, ' ')
+    if (!Mnemonic.isValidMnemonic(phrase)) {
+      toast('Recovery phrase is invalid. Check the 12 or 24 words and their order.')
+      return false
+    }
+    const account = HDNodeWallet.fromPhrase(phrase)
+    if (accts.some((item) => item.address.toLowerCase() === account.address.toLowerCase())) {
+      toast('This recovery phrase account is already added')
+      return false
+    }
+    try {
+      await saveImportedAccount(account, password)
+      setAccts((current) => [...current, account])
+      setImported((current) => [...current, account.address])
+      setIdx(accts.length)
+      toast('Recovery phrase imported and encrypted')
+      return true
+    } catch (error) {
+      toast(error.message || 'Could not import this recovery phrase')
+      return false
+    }
+  }
+
+  const importKey = async (s, password) => {
     s = s.trim()
     if (!/^(0x)?[0-9a-fA-F]{64}$/.test(s)) return toast('Enter a valid 64-character private key')
     const a = new Wallet(s.startsWith('0x') ? s : '0x' + s)
     if (accts.some((x) => x.address === a.address)) return toast('That account is already added')
-    setAccts([...accts, a]); setImported([...imported, a.address]); setIdx(accts.length); toast('Account imported'); return true
+    try {
+      await (async () => {
+        if (getVault()) {
+          const { saveImportedAccount } = await import('./wallet.js')
+          await saveImportedAccount(a, password)
+        } else throw new Error('Extra account saving requires an encrypted wallet. Import or create a wallet with a password first.')
+      })()
+    } catch (e) { toast(e.message); return false }
+    setAccts([...accts, a]); setImported([...imported, a.address]); setIdx(accts.length); toast('Account saved securely'); return true
   }
-  const removeAcct = (i) => { const a = accts[i]; setAccts(accts.filter((_, j) => j !== i)); setImported(imported.filter((x) => x !== a.address)); if (idx >= i) setIdx(Math.max(0, idx - 1)) }
+  const removeAcct = async (i) => { const a = accts[i]; if (imported.includes(a.address)) await removeSavedImported(a.address); setAccts(accts.filter((_, j) => j !== i)); setImported(imported.filter((x) => x !== a.address)); if (idx >= i) setIdx(Math.max(0, idx - 1)) }
 
   const switchNet = async (id) => {
     if (mode === 'local') { setChain(id); save('orbit:chain', id); return }
@@ -241,7 +287,7 @@ export default function App() {
   const setHidList = (l) => { setHidS(l); save('hid:' + w.chain, l) }
   const chainHist = w ? hist.filter((x) => x.chain === w.chain && (filter === 'all' || (filter === 'in' && x.dir === 'in') || (filter === 'out' && x.dir !== 'in') || (filter === 'pending' && x.st === 'Pending'))) : []
   const shownRows = (rows || []).filter((t) => !(cfg.hideZero && +t.raw === 0))
-  const hidTokens = allTokens.filter((t) => hid.includes(t.address))
+  const hidTokens = tokens.filter((t) => hid.includes(t.address))
   const isCustom = (t) => custom.some((c) => c.address === t.address)
   const cur = w && (mode === 'local' ? acctName(w.a, idx) : 'Browser wallet')
 
@@ -312,6 +358,14 @@ export default function App() {
                 {gas && <div className="mute gas"><Icon n="gas" s={14} /> Network fee now: {gas} gwei</div>}
               </div>
               </div><div className="col">
+              <WalletActions
+                mode={mode}
+                canDerive={!!accts?.[0]?.mnemonic}
+                createDerived={addDerived}
+                createIndependent={createIndependentAccount}
+                importRecoveryPhrase={importRecoveryPhrase}
+                toast={toast}
+              />
               <h3>Assets</h3>
               <div className="list">
                 {rows === null ? <div className="skel" /> : shownRows.map((t) => (
@@ -320,7 +374,7 @@ export default function App() {
               </div>
               {hidTokens.length > 0 && <button className="link left" onClick={() => setShowHid(!showHid)}>Hidden tokens ({hidTokens.length})</button>}
               {showHid && <div className="list">{hidTokens.map((t) => <div className="row" key={t.address}><div className="grow"><b>{t.symbol}</b></div><button onClick={() => setHidList(hid.filter((a) => a !== t.address))}>Show</button></div>)}</div>}
-              {w.chain === '0xaa36a7' && <a className="mute" href="https://cloud.google.com/application/web3/faucet/ethereum/sepolia" target="_blank" rel="noopener noreferrer">Need test ETH? Open the Sepolia faucet</a>}
+              <div className="inrow token-actions"><button onClick={() => setView('import-token')}><Icon n="plus" s={16} /> Add custom token</button>{w.chain === '0xaa36a7' && <a className="mute" href="https://cloud.google.com/application/web3/faucet/ethereum/sepolia" target="_blank" rel="noopener noreferrer">Need test ETH? Open the Sepolia faucet</a>}</div>
               </div></div>
             </section>
           )}
@@ -332,7 +386,7 @@ export default function App() {
               <div className="list">
                 {chainHist.length === 0 && <div className="note">Nothing here yet. USDC transfers on Sepolia are indexed from Etherscan and shown here.</div>}
                 {chainHist.map((x) => (
-                  <div className="row click" key={x.hash + (x.dir || 'out') + x.sym} onClick={() => setSelTx(x)}>
+                  <div className={'row click activity-' + (x.dir === 'in' ? 'receive' : 'send')} key={x.hash + (x.dir || 'out') + x.sym} onClick={() => setSelTx(x)}>
                     <div className="ico"><Icon n={x.dir === 'in' ? 'recv' : 'send'} s={18} /></div>
                     <div className="grow"><b>{x.dir === 'in' ? 'Received' : 'Sent'} {x.sym}</b><span className="mute">{x.dir === 'in' ? 'from ' + who(x.from) : 'to ' + who(x.to)}{x.note ? ' · ' + x.note : ''}</span></div>
                     <div className="r"><b>{x.dir === 'in' ? '+' : '-'}{x.amt}</b><span className={'badge ' + x.st.toLowerCase()}>{x.st}</span></div>
@@ -344,6 +398,7 @@ export default function App() {
 
           {w && view === 'send' && <Send {...{ w, net, tokens, rows, bal, cfg, setCfg, contacts, toast, addTx, patch, refresh, pre }} go={setView} />}
           {w && view === 'receive' && <Receive w={w} net={net} go={setView} toast={toast} />}
+          {w && view === 'import-token' && <ImportToken w={w} go={setView} toast={toast} custom={custom} setCustom={setCustom} />}
           
           {w && view === 'accounts' && <Accounts {...{ w, sym: net.sym, mode, accts, idx, setIdx, names, setNames, imported, addDerived, importKey, removeAcct, toast }} canDerive={!!accts?.[0]?.mnemonic} />}
           {w && view === 'networks' && <Networks {...{ w, mode, cfg, setCfg, switchNet, bump, toast }} />}

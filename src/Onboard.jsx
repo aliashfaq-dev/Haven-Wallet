@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Wallet, HDNodeWallet, Mnemonic } from 'ethers'
-import { createVault, unlockVault, deriveAccounts, getVault } from './wallet.js'
+import { createVault, unlockVault, deriveAccounts, getVault, restoreVaultAccounts } from './wallet.js'
 import { Progress, Icon, Logo } from './ui.jsx'
 import { enableBiometricSession, unlockWithBiometrics, hasBiometricSession } from './biometric.js'
 
@@ -85,7 +85,7 @@ export function Unlock({ onUnlock, onForget, onInjected, hasEth }) {
   const finishPayload = async (payload) => {
     if (payload.kind === 'vault') {
       const root = await unlockVault(payload.password, setP)
-      onUnlock(deriveAccounts(root, getVault().count))
+      onUnlock(await restoreVaultAccounts(root, payload.password))
     } else if (payload.kind === 'privateKey') {
       onUnlock([new Wallet(payload.privateKey)])
     } else {
@@ -96,7 +96,7 @@ export function Unlock({ onUnlock, onForget, onInjected, hasEth }) {
     setErr(''); setP(0)
     try {
       const root = await unlockVault(pw, setP)
-      onUnlock(deriveAccounts(root, getVault().count))
+      onUnlock(await restoreVaultAccounts(root, pw))
     } catch { setErr('Wrong password. Try again.'); setP(null) }
   }
   const biometric = async () => {
