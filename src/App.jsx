@@ -386,7 +386,7 @@ export default function App() {
               <div className="list">
                 {chainHist.length === 0 && <div className="note">Nothing here yet. USDC transfers on Sepolia are indexed from Etherscan and shown here.</div>}
                 {chainHist.map((x) => (
-                  <div className="row click" key={x.hash + (x.dir || 'out') + x.sym} onClick={() => setSelTx(x)}>
+                  <div className={'row click activity-' + (x.dir === 'in' ? 'receive' : 'send')} key={x.hash + (x.dir || 'out') + x.sym} onClick={() => setSelTx(x)}>
                     <div className="ico"><Icon n={x.dir === 'in' ? 'recv' : 'send'} s={18} /></div>
                     <div className="grow"><b>{x.dir === 'in' ? 'Received' : 'Sent'} {x.sym}</b><span className="mute">{x.dir === 'in' ? 'from ' + who(x.from) : 'to ' + who(x.to)}{x.note ? ' · ' + x.note : ''}</span></div>
                     <div className="r"><b>{x.dir === 'in' ? '+' : '-'}{x.amt}</b><span className={'badge ' + x.st.toLowerCase()}>{x.st}</span></div>
