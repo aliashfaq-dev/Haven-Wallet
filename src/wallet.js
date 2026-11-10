@@ -59,6 +59,26 @@ export async function createVault(wal, password, progressCallback) {
   save(VAULT, { json, count: 1 })
 }
 export const unlockVault = (password, progress) => Wallet.fromEncryptedJson(getVault().json, password, progress)
+export async function changeVaultPassword(currentPassword, nextPassword) {
+  const vault = getVault()
+  if (!vault?.json) throw new Error('No password-encrypted wallet is available.')
+  const root = await unlockVault(currentPassword)
+  const imported = []
+  for (const item of vault.imported || []) {
+    const wallet = await Wallet.fromEncryptedJson(item.json, currentPassword)
+    imported.push({
+      address: wallet.address,
+      json: await encryptKeystoreJson({ address: wallet.address, privateKey: wallet.privateKey }, nextPassword, { scrypt: { N: 2 ** 16 } }),
+    })
+  }
+  const account = {
+    address: root.address, privateKey: root.privateKey,
+    mnemonic: root.mnemonic ? { path: root.path, locale: 'en', entropy: root.mnemonic.entropy } : undefined,
+  }
+  const json = await encryptKeystoreJson(account, nextPassword, { scrypt: { N: 2 ** 16 } })
+  save(VAULT, { ...vault, json, imported })
+  return true
+}
 export const deriveAt = (root, i) => HDNodeWallet.fromMnemonic(root.mnemonic, `m/44'/60'/0'/0/${i}`)
 export const deriveAccounts = (root, count) =>
   !root.mnemonic ? [root] : Array.from({ length: count }, (_, i) => (i === 0 ? root : deriveAt(root, i)))
