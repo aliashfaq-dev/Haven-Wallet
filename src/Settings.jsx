@@ -7,7 +7,7 @@ export default function Settings({ w, cfg, setCfg, lock, forget, disconnect, con
   const local = w.mode === 'local'
   const [pw, setPw] = useState(''), [secret, setSecret] = useState(null), [busy, setBusy] = useState(false)
   const [currentPw, setCurrentPw] = useState(''), [newPw, setNewPw] = useState(''), [confirmPw, setConfirmPw] = useState('')
-  const [nm, setNm] = useState(''), [ad, setAd] = useState(''), [msg, setMsg] = useState(''), [sig, setSig] = useState('')
+  const [nm, setNm] = useState(''), [ad, setAd] = useState('')
   const [rpc, setRpc] = useState(cfg.rpc[w.chain] || '')
 
   const reveal = async () => {
@@ -27,12 +27,6 @@ export default function Settings({ w, cfg, setCfg, lock, forget, disconnect, con
     const l = [...contacts, { name: nm, address: getAddress(ad) }]; setContacts(l); save('orbit:contacts', l); setNm(''); setAd('')
   }
   const delContact = (a) => { const l = contacts.filter((c) => c.address !== a); setContacts(l); save('orbit:contacts', l) }
-  const [td, setTd] = useState('')
-  const signTyped = async () => { try { const j = JSON.parse(td); setSig(await w.s.signTypedData(j.domain, j.types, j.message ?? j.value)) } catch { toast('Invalid typed data, or signing was rejected') } }
-  const sign = async () => {
-    if (!msg) return toast('Enter a message to sign')
-    try { setSig(await w.s.signMessage(msg)) } catch { toast('Signature rejected') }
-  }
 
   return (
     <section className="view cols">
@@ -53,7 +47,6 @@ export default function Settings({ w, cfg, setCfg, lock, forget, disconnect, con
           </div>
         </>
       )}
-      {local && !getVault() && <SecPw toast={toast} />}
       <div className="group"><h3>Contacts</h3>
         {contacts.map((c) => <div className="split" key={c.address}><span>{c.name}<br /><small className="mute">{short(c.address)}</small></span><button onClick={() => delContact(c.address)}>Remove</button></div>)}
         <input value={nm} onChange={(e) => setNm(e.target.value)} placeholder="Name" />
