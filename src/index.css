@@ -355,3 +355,48 @@ input, select, textarea, button { -webkit-tap-highlight-color: transparent; }
   display: block;
   line-height: 1.25;
 }
+
+
+/* Send screen: make recipient QR scanning obvious and balance persistent. */
+.scan-qr-btn {
+  display: flex;
+  width: 100%;
+  min-height: 46px;
+  margin-top: 9px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  background: var(--panel);
+  font-weight: 600;
+}
+.send-balance {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 3px 0 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--sub);
+}
+.send-balance span { color: var(--mute); font-size: 13px; }
+.send-balance strong { color: var(--ink); font-size: 15px; text-align: right; overflow-wrap: anywhere; }
+
+/* Security settings: center each switch beneath its setting label. */
+.setting-toggle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 9px 4px 12px;
+  text-align: center;
+  border-bottom: 1px solid var(--line);
+}
+.setting-toggle:last-child { border-bottom: 0; }
+.setting-toggle > span { width: 100%; }
+.setting-toggle .tg { align-self: center; flex: 0 0 auto; }
+.setting-toggle small { display: inline-block; margin-top: 4px; }
