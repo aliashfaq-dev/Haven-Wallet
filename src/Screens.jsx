@@ -35,6 +35,12 @@ export function Send({ w, net, tokens, rows, bal, cfg, setCfg, contacts, go, toa
   const submit = () => {
     if (!valid) return toast('Enter a valid recipient address')
     if (!parsed || parsed <= 0n) return toast('Enter an amount greater than 0')
+    try {
+      const available = tok ? parseUnits(rows?.find((x) => x.address.toLowerCase() === tok.address.toLowerCase())?.raw || '0', tok.decimals) : parseEther(bal || '0')
+      if (parsed > available) return toast('Insufficient ' + (tok ? tok.symbol : 'ETH') + ' balance')
+      if (fee && parseEther(bal || '0') < fee) return toast('Not enough SepoliaETH for network fee')
+      if (!tok && fee && parsed + fee > available) return toast('Not enough SepoliaETH for amount and fee')
+    } catch { return toast('Enter a valid amount') }
     if (w.mode === 'local' && !cfg.quick) setReview(true); else send()
   }
   const send = async () => {
@@ -77,7 +83,7 @@ export function Send({ w, net, tokens, rows, bal, cfg, setCfg, contacts, go, toa
         </select></div>
       <div><label>To</label><input value={to} onChange={(e) => setTo(e.target.value)} placeholder="0x…" autoComplete="off" />
         {contacts.length > 0 && <div className="chips">{contacts.map((c) => <button key={c.address} className="cc" onClick={() => setTo(c.address)}>{c.name}</button>)}</div>}</div>
-      <div><label>Amount</label><div className="inrow"><input value={amt} onChange={(e) => setAmt(e.target.value)} inputMode="decimal" placeholder="0.0" /><button onClick={max}>Max</button></div></div>
+      <div><div className="split"><label>Available balance</label><b>{tok ? (rows?.find((x) => x.address.toLowerCase() === tok.address.toLowerCase())?.raw || '0') + ' ' + tok.symbol : bal + ' ETH'}</b></div><label>Amount</label><div className="inrow"><input value={amt} onChange={(e) => setAmt(e.target.value)} inputMode="decimal" placeholder="0.0" /><button onClick={max}>Max</button></div></div>
       <div><label>Speed</label><Seg v={speed} set={setSpeed} opts={[['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast']]} /></div>
       <button className="link left" onClick={() => setAdv(!adv)}>{adv ? 'Hide' : 'Show'} advanced options</button>
       {adv && <div className="group"><div className="inrow"><input value={mf} onChange={(e) => setMf(e.target.value)} placeholder="Max fee (gwei)" /><input value={pf} onChange={(e) => setPf(e.target.value)} placeholder="Priority fee (gwei)" /></div><input value={nonce} onChange={(e) => setNonce(e.target.value)} placeholder="Nonce (empty = automatic)" /></div>}
