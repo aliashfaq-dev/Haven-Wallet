@@ -28,7 +28,12 @@ export const getSavedImported = () => getVault()?.imported || []
 export async function saveImportedAccount(wallet, password) {
   const vault = getVault()
   if (!vault?.json) throw new Error('Create or import an encrypted wallet with a password before saving extra accounts.')
-  const encrypted = await encryptKeystoreJson({ address: wallet.address, privateKey: wallet.privateKey }, password, { scrypt: { N: 2 ** 16 } })
+  const account = {
+    address: wallet.address,
+    privateKey: wallet.privateKey,
+    mnemonic: wallet.mnemonic ? { path: wallet.path, locale: 'en', entropy: wallet.mnemonic.entropy } : undefined,
+  }
+  const encrypted = await encryptKeystoreJson(account, password, { scrypt: { N: 2 ** 16 } })
   const imported = [...(vault.imported || [])]
   if (imported.some((x) => x.address.toLowerCase() === wallet.address.toLowerCase())) throw new Error('That account is already saved.')
   imported.push({ address: wallet.address, json: encrypted })
@@ -85,9 +90,16 @@ export const deriveAccounts = (root, count) =>
 
 export async function feeOverrides(p, speed) {
   const fd = await p.getFeeData()
-  const m = { slow: 90n, normal: 100n, fast: 130n }[speed]
-  if (fd.maxFeePerGas) return { maxFeePerGas: (fd.maxFeePerGas * m) / 100n, maxPriorityFeePerGas: ((fd.maxPriorityFeePerGas ?? 0n) * m) / 100n }
-  return { gasPrice: (fd.gasPrice * m) / 100n }
+  const m = { slow: 90n, normal: 100n, fast: 130n }[speed] ?? 100n
+  if (fd.maxFeePerGas != null) {
+    const priority = fd.maxPriorityFeePerGas ?? 0n
+    return {
+      maxFeePerGas: (fd.maxFeePerGas * m) / 100n,
+      maxPriorityFeePerGas: (priority * m) / 100n,
+    }
+  }
+  if (fd.gasPrice != null) return { gasPrice: (fd.gasPrice * m) / 100n }
+  throw new Error('The network did not return a usable gas price. Try again in a moment.')
 }
 
 export const addNet = (id, n) => { NETS[id] = n; save('orbit:nets', { ...load('orbit:nets', {}), [id]: n }) }
