@@ -18,16 +18,26 @@ export function Send({ w, net, tokens, rows, bal, cfg, setCfg, contacts, go, toa
     let dead = false
     ;(async () => {
       try {
-        const o = await feeOverrides(w.p, speed), mf = o.maxFeePerGas || o.gasPrice
-        let gas = 21000n
-        if (tok) gas = valid && parsed > 0n
-          ? await new Contract(tok.address, ERC20, w.p).transfer.estimateGas(to.trim(), parsed, { from: w.a }).catch(() => 80000n)
-          : 80000n
-        if (!dead) setFee(gas * mf)
-      } catch {}
+        const overrides = await feeOverrides(w.p, speed)
+        const maxPricePerGas = overrides.maxFeePerGas ?? overrides.gasPrice
+        if (maxPricePerGas == null) throw new Error('Gas price unavailable')
+        let gasLimit
+        if (tok) {
+          gasLimit = valid && parsed > 0n
+            ? await new Contract(tok.address, ERC20, w.p).transfer.estimateGas(to.trim(), parsed, { from: w.a }).catch(() => 80000n)
+            : 65000n
+        } else {
+          gasLimit = valid && parsed > 0n
+            ? await w.p.estimateGas({ from: w.a, to: to.trim(), value: parsed }).catch(() => 21000n)
+            : 21000n
+        }
+        if (!dead) setFee(gasLimit * maxPricePerGas)
+      } catch {
+        if (!dead) setFee(null)
+      }
     })()
     return () => { dead = true }
-  }, [w, speed, asset, valid, parsed])
+  }, [w, speed, asset, valid, parsed, to, tok])
 
   const max = () => {
     if (tok) { const r = rows?.find((x) => x.address === tok.address); if (r) setAmt(r.raw) }
@@ -54,11 +64,14 @@ export function Send({ w, net, tokens, rows, bal, cfg, setCfg, contacts, go, toa
       if (w.chain !== '0xaa36a7') throw new Error('Please connect to Sepolia first')
       if (asset === 'native') {
         sym = net.sym || 'SepoliaETH'
-        tx = await w.s.sendTransaction({ to: dest, value: parsed, ...o })
+        const gasLimit = await w.p.estimateGas({ from: w.a, to: dest, value: parsed })
+        tx = await w.s.sendTransaction({ to: dest, value: parsed, gasLimit, ...o })
       } else {
         if (!tok) throw new Error('Select a valid token contract')
         sym = tok.symbol
-        tx = await new Contract(tok.address, ERC20, w.s).transfer(dest, parsed, o)
+        const contract = new Contract(tok.address, ERC20, w.s)
+        const gasLimit = await contract.transfer.estimateGas(dest, parsed, { from: w.a })
+        tx = await contract.transfer(dest, parsed, { ...o, gasLimit })
       }
       addTx({ hash: tx.hash, to: dest, amt, sym, chain: w.chain, st: 'Pending', nonce: tx.nonce, ts: Date.now(), raw: rawOf(tx) })
       toast('Transaction sent'); go('activity')
@@ -69,7 +82,7 @@ export function Send({ w, net, tokens, rows, bal, cfg, setCfg, contacts, go, toa
     }
     setBusy(false)
   }
-  const feeTxt = fee ? `${(+formatEther(fee)).toFixed(6)} ${net.sym}` : 'Estimating…'
+  const feeTxt = fee !== null ? `${(+formatEther(fee)).toFixed(6)} ${net.sym}` : 'Fee estimate unavailable'
 
   return (
     <section className="view on">
@@ -83,7 +96,7 @@ export function Send({ w, net, tokens, rows, bal, cfg, setCfg, contacts, go, toa
         {contacts.length > 0 && <div className="chips">{contacts.map((c) => <button key={c.address} className="cc" onClick={() => setTo(c.address)}>{c.name}</button>)}</div>}</div>
       <div className="send-balance"><span>Available {tok ? tok.symbol : 'SepoliaETH'} balance</span><strong>{tok ? (rows?.find((x) => x.address.toLowerCase() === tok.address.toLowerCase())?.raw || '0') + ' ' + tok.symbol : bal + ' ETH'}</strong></div><div><label>Amount</label><div className="inrow"><input value={amt} onChange={(e) => setAmt(e.target.value)} inputMode="decimal" placeholder="0.0" /><button onClick={max}>Max</button></div></div>
       <div><label>Network fee priority</label><Seg v={speed} set={setSpeed} opts={ [['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast']] } /></div>
-      <div className="note">Estimated network fee: {feeTxt}</div>
+      <div className="note">Estimated maximum network fee: {feeTxt}</div>
       <button className="pri" disabled={busy} onClick={submit}>{busy ? 'Sending…' : w.mode === 'local' ? (cfg.quick ? 'Send now' : 'Review and send') : 'Send with wallet'}</button>
       {scanning && <QrScanner onClose={() => setScanning(false)} onResult={(raw) => {
         try {
@@ -105,7 +118,7 @@ export function Send({ w, net, tokens, rows, bal, cfg, setCfg, contacts, go, toa
       <Sheet open={review} onClose={() => setReview(false)}>
         <h2>Review transaction</h2>
         <div className="kv"><span>From</span><b>{short(w.a)}</b><span>To</span><b>{short(to.trim() || '0x0000000000000000')}</b>
-          <span>Amount</span><b>{amt} {tok ? tok.symbol : net.sym}</b><span>Network</span><b>{net.name}</b><span>Fee</span><b>{feeTxt}</b></div>
+          <span>Amount</span><b>{amt} {tok ? tok.symbol : net.sym}</b><span>Network</span><b>{net.name}</b><span>Estimated max fee</span><b>{feeTxt}</b></div>
         <div className="split"><span>Skip this review from now on</span><Toggle on={skip} set={setSkip} /></div>
         <div className="inrow"><button onClick={() => setReview(false)}>Cancel</button><button className="pri" onClick={send}>Confirm and send</button></div>
       </Sheet>
