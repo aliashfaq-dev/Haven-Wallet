@@ -6,7 +6,7 @@ import Gate from './Gate.jsx'
 
 export default function Accounts({ w, sym, mode, accts, idx, setIdx, names, setNames, imported, canDerive, addDerived, importKey, removeAcct, toast }) {
   const [bals, setBals] = useState({}), [edit, setEdit] = useState(null), [nm, setNm] = useState('')
-  const [pk, setPk] = useState(''), [keyOf, setKeyOf] = useState(null), [ack, setAck] = useState(false), [gate, setGate] = useState(null)
+  const [pk, setPk] = useState(''), [keyOf, setKeyOf] = useState(null), [ack, setAck] = useState(false), [gate, setGate] = useState(null), [importGate, setImportGate] = useState(false)
   useEffect(() => {
     if (mode === 'local') accts.forEach((a) => w.p.getBalance(a.address).then((b) => setBals((x) => ({ ...x, [a.address]: formatEther(b) }))).catch(() => {}))
   }, [accts, w.p, mode])
@@ -37,8 +37,9 @@ export default function Accounts({ w, sym, mode, accts, idx, setIdx, names, setN
       </div>
       {canDerive && <button onClick={addDerived}><Icon n="plus" s={16} /> Create new account</button>}
       <div className="group"><h3>Import account</h3>
-        <p className="mute">Adds a private key to this session. Imported accounts are not saved, so they disappear when you lock or refresh.</p>
-        <div className="inrow"><input type="password" autoComplete="off" value={pk} onChange={(e) => setPk(e.target.value)} placeholder="Private key" /><button onClick={() => importKey(pk) && setPk('')}>Import</button></div></div>
+        <p className="mute">Imported accounts are encrypted with your wallet password and restored whenever you unlock this wallet.</p>
+        <div className="inrow"><input type="password" autoComplete="off" value={pk} onChange={(e) => setPk(e.target.value)} placeholder="Private key" /><button disabled={!pk.trim()} onClick={() => setImportGate(true)}>Import and save</button></div></div>
+      <Gate open={importGate} onClose={() => setImportGate(false)} toast={toast} why="Confirm your wallet password to encrypt and save this account." onPass={async (password) => { const ok = await importKey(pk, password); if (ok) setPk(''); setImportGate(false) }} />
       <Gate open={gate !== null} onClose={() => setGate(null)} toast={toast} why="Enter your password to view this private key." onPass={() => { setKeyOf(gate); setGate(null); setAck(false) }} />
       <Sheet open={keyOf !== null} onClose={() => { setKeyOf(null); setAck(false) }}>
         {keyOf !== null && <>
