@@ -95,7 +95,7 @@ export function Send({ w, net, tokens, rows, bal, cfg, setCfg, contacts, go, toa
           let recipient = raw.trim(), amount = '', assetCode = 'native', chainId = 11155111;
           if (recipient.toLowerCase().startsWith('ethereum:')) {
             const body = recipient.slice(9); const parts = body.split('?'); const head = parts[0]; const query = new URLSearchParams(parts[1] || '');
-            const match = head.match(/^([^/@]+)(?:@(\\d+))?(?:\\/(transfer))?$/);
+            const match = head.match(/^([^/@]+)(?:@(\d+))?(?:\/(transfer))?$/);
             if (!match) throw new Error('Invalid Ethereum QR');
             chainId = Number(match[2] || 11155111);
             if (match[3] === 'transfer') { recipient = query.get('address') || ''; assetCode = 'usdc'; const rawAmount = query.get('uint256'); amount = rawAmount ? (Number(rawAmount) / 1e6).toString() : ''; }
