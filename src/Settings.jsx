@@ -32,13 +32,13 @@ export default function Settings({ w, cfg, setCfg, lock, forget, disconnect, con
       {local && (
         <>
           <div className="group"><h3>Security</h3>
-            <div className="split"><span>Skip send review<br /><small className="mute">Send in one tap, no confirmation sheet</small></span><Toggle on={cfg.quick} set={(v) => setCfg({ quick: v })} /></div>
-            <div className="split"><span>Hide balances</span><Toggle on={!!cfg.hideBal} set={(v) => setCfg({ hideBal: v })} /></div>
-            <div className="split"><span>Hide zero-balance tokens</span><Toggle on={!!cfg.hideZero} set={(v) => setCfg({ hideZero: v })} /></div>
+            <div className="setting-toggle"><span>Skip send review<br /><small className="mute">Send in one tap, no confirmation sheet</small></span><Toggle on={cfg.quick} set={(v) => setCfg({ quick: v })} /></div>
+            <div className="setting-toggle"><span>Hide balances</span><Toggle on={!!cfg.hideBal} set={(v) => setCfg({ hideBal: v })} /></div>
+            <div className="setting-toggle"><span>Hide zero-balance tokens</span><Toggle on={!!cfg.hideZero} set={(v) => setCfg({ hideZero: v })} /></div>
             <div className="split"><span>Auto-lock</span>
               <select value={cfg.lock} onChange={(e) => setCfg({ lock: +e.target.value })}>
                 <option value={5}>5 min</option><option value={15}>15 min</option><option value={30}>30 min</option><option value={0}>Never</option></select></div>
-            <div className="split"><span>Desktop notifications<br /><small className="mute">Alert me about incoming funds when this tab is in the background</small></span><Toggle on={!!cfg.notify} set={async (v) => { if (v && 'Notification' in window) { const p = await Notification.requestPermission(); if (p !== 'granted') return toast('Notifications are blocked in this browser') } setCfg({ notify: v }) }} /></div>
+            <div className="setting-toggle"><span>Desktop notifications<br /><small className="mute">Alert me about incoming funds when this tab is in the background</small></span><Toggle on={!!cfg.notify} set={async (v) => { if (v && 'Notification' in window) { const p = await Notification.requestPermission(); if (p !== 'granted') return toast('Notifications are blocked in this browser') } setCfg({ notify: v }) }} /></div>
             {getVault() && <div><label>Show recovery phrase or private key</label>
               {secret ? (<><div className="note warn">{secret}</div><div className="inrow"><button onClick={() => { navigator.clipboard?.writeText(secret); toast('Copied') }}>Copy</button><button onClick={() => setSecret(null)}>Hide</button></div></>)
                 : (<div className="inrow"><input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Password" /><button disabled={busy || !pw} onClick={reveal}>{busy ? '…' : 'Reveal'}</button></div>)}</div>}
