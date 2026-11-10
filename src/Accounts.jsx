@@ -52,3 +52,80 @@ export default function Accounts({ w, sym, mode, accts, idx, setIdx, names, setN
     </section>
   )
 }
+
+
+/* Quick account tools are also available directly from the Wallet / Assets tab. */
+export function WalletActions({ mode, canDerive, createDerived, createIndependent, importRecoveryPhrase, toast }) {
+  const [showImport, setShowImport] = useState(false)
+  const [phrase, setPhrase] = useState('')
+  const [gateAction, setGateAction] = useState(null)
+
+  const create = () => {
+    if (mode !== 'local') return toast('Account management is available for your local encrypted wallet.')
+    if (canDerive) createDerived()
+    else setGateAction('create')
+  }
+  const beginImport = () => {
+    if (mode !== 'local') return toast('Connect or unlock your local wallet to import an account.')
+    if (!phrase.trim()) return toast('Enter your recovery phrase first')
+    setGateAction('phrase')
+  }
+  const confirm = async (password) => {
+    const action = gateAction
+    setGateAction(null)
+    try {
+      const ok = action === 'create'
+        ? await createIndependent(password)
+        : await importRecoveryPhrase(phrase, password)
+      if (ok !== false) {
+        setPhrase('')
+        setShowImport(false)
+      }
+    } catch (error) {
+      toast(error.message || 'Could not add this account')
+    }
+  }
+
+  return (
+    <div className="group wallet-account-actions">
+      <div className="between">
+        <h3>Wallet accounts</h3>
+        <span className="mute">Manage your accounts</span>
+      </div>
+      <div className="inrow">
+        <button className="pri" onClick={create} disabled={mode !== 'local'}>
+          <Icon n="plus" s={16} /> Create new account
+        </button>
+        <button onClick={() => setShowImport((v) => !v)} disabled={mode !== 'local'}>
+          <Icon n="key" s={16} /> Import recovery phrase
+        </button>
+      </div>
+      {showImport && (
+        <>
+          <div>
+            <label>Existing wallet recovery phrase</label>
+            <textarea
+              rows="3"
+              autoComplete="off"
+              spellCheck="false"
+              value={phrase}
+              onChange={(event) => setPhrase(event.target.value)}
+              placeholder="Enter your 12 or 24 recovery words"
+            />
+          </div>
+          <p className="mute">The phrase is encrypted with your current wallet password before it is saved in this browser.</p>
+          <button className="pri" disabled={!phrase.trim()} onClick={beginImport}>Import and encrypt account</button>
+        </>
+      )}
+      <Gate
+        open={gateAction !== null}
+        onClose={() => setGateAction(null)}
+        toast={toast}
+        why={gateAction === 'create'
+          ? 'Confirm your wallet password to create and encrypt a new independent account.'
+          : 'Confirm your wallet password to encrypt and save this recovery phrase.'}
+        onPass={confirm}
+      />
+    </div>
+  )
+}
