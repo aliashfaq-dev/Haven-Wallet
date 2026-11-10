@@ -43,7 +43,7 @@ export default function App() {
   const bump = () => setNv((n) => n + 1)
   const net = w && (NETS[w.chain] || { name: 'Chain ' + parseInt(w.chain, 16), sym: 'ETH', scan: '' })
   const allTokens = w?.chain === '0xaa36a7' ? DEFAULT_TOKENS['0xaa36a7'] : []
-  const tokens = allTokens
+  const tokens = [...allTokens, ...custom.filter((t) => !allTokens.some((d) => d.address.toLowerCase() === t.address.toLowerCase()))]
   const acctName = (a, i) => names[a] || 'Account ' + (i + 1)
 
   /* ---- browser wallet ---- */
@@ -249,7 +249,7 @@ export default function App() {
   const setHidList = (l) => { setHidS(l); save('hid:' + w.chain, l) }
   const chainHist = w ? hist.filter((x) => x.chain === w.chain && (filter === 'all' || (filter === 'in' && x.dir === 'in') || (filter === 'out' && x.dir !== 'in') || (filter === 'pending' && x.st === 'Pending'))) : []
   const shownRows = (rows || []).filter((t) => !(cfg.hideZero && +t.raw === 0))
-  const hidTokens = allTokens.filter((t) => hid.includes(t.address))
+  const hidTokens = tokens.filter((t) => hid.includes(t.address))
   const isCustom = (t) => custom.some((c) => c.address === t.address)
   const cur = w && (mode === 'local' ? acctName(w.a, idx) : 'Browser wallet')
 
@@ -328,7 +328,7 @@ export default function App() {
               </div>
               {hidTokens.length > 0 && <button className="link left" onClick={() => setShowHid(!showHid)}>Hidden tokens ({hidTokens.length})</button>}
               {showHid && <div className="list">{hidTokens.map((t) => <div className="row" key={t.address}><div className="grow"><b>{t.symbol}</b></div><button onClick={() => setHidList(hid.filter((a) => a !== t.address))}>Show</button></div>)}</div>}
-              {w.chain === '0xaa36a7' && <a className="mute" href="https://cloud.google.com/application/web3/faucet/ethereum/sepolia" target="_blank" rel="noopener noreferrer">Need test ETH? Open the Sepolia faucet</a>}
+              <div className="inrow token-actions"><button onClick={() => setView('import-token')}><Icon n="plus" s={16} /> Add custom token</button>{w.chain === '0xaa36a7' && <a className="mute" href="https://cloud.google.com/application/web3/faucet/ethereum/sepolia" target="_blank" rel="noopener noreferrer">Need test ETH? Open the Sepolia faucet</a>}</div>
               </div></div>
             </section>
           )}
@@ -351,7 +351,7 @@ export default function App() {
           )}
 
           {w && view === 'send' && <Send {...{ w, net, tokens, rows, bal, cfg, setCfg, contacts, toast, addTx, patch, refresh, pre }} go={setView} />}
-          {w && view === 'receive' && <Receive w={w} net={net} go={setView} toast={toast} />}
+          {w && view === 'receive' && <Receive w={w} net={net} go={setView} toast={toast} />}\n          {w && view === 'import-token' && <ImportToken w={w} go={setView} toast={toast} custom={custom} setCustom={setCustom} />}
           
           {w && view === 'accounts' && <Accounts {...{ w, sym: net.sym, mode, accts, idx, setIdx, names, setNames, imported, addDerived, importKey, removeAcct, toast }} canDerive={!!accts?.[0]?.mnemonic} />}
           {w && view === 'networks' && <Networks {...{ w, mode, cfg, setCfg, switchNet, bump, toast }} />}
