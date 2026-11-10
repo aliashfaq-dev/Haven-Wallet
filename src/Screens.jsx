@@ -119,18 +119,31 @@ export function Send({ w, net, tokens, rows, bal, cfg, setCfg, contacts, go, toa
 }
 
 export function Receive({ w, net, go, toast }) {
-  const [qr, setQr] = useState(''), [amt, setAmt] = useState('')
-  const link = (() => { try { return amt && parseEther(amt) > 0n ? `ethereum:${w.a}@${parseInt(w.chain, 16)}?value=${parseEther(amt)}` : w.a } catch { return w.a } })()
-  useEffect(() => { QRCode.toDataURL(link, { margin: 1, width: 220, color: { dark: '#1d1c18', light: '#ffffff' } }).then(setQr) }, [link])
+  const [qr, setQr] = useState(''), [amt, setAmt] = useState(''), [asset, setAsset] = useState('native')
+  const usdcAddress = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
+  const link = (() => {
+    try {
+      const chainId = parseInt(w.chain, 16)
+      if (asset === 'usdc') {
+        const raw = amt ? parseUnits(amt, 6) : 0n
+        return `ethereum:${usdcAddress}@${chainId}/transfer?address=${w.a}` + (raw > 0n ? `&uint256=${raw}` : '')
+      }
+      const raw = amt ? parseEther(amt) : 0n
+      return `ethereum:${w.a}@${chainId}` + (raw > 0n ? `?value=${raw}` : '')
+    } catch { return `ethereum:${w.a}@${parseInt(w.chain, 16)}` }
+  })()
+  useEffect(() => { QRCode.toDataURL(link, { margin: 1, width: 220, color: { dark: '#1d1c18', light: '#ffffff' } }).then(setQr).catch(() => setQr('')) }, [link])
   return (
     <section className="view">
-      <Back go={go} /><h2>Receive</h2>
-      <div className="qr">{qr && <img src={qr} alt="QR code of your address" />}</div>
+      <Back go={go} /><h2>Receive · Ethereum Sepolia</h2>
+      <div><label>Asset to request</label><select value={asset} onChange={(e) => { setAsset(e.target.value); setAmt('') }}><option value="native">SepoliaETH (ETH)</option><option value="usdc">USDC</option></select></div>
+      <div><label>Request amount (optional)</label><input value={amt} onChange={(e) => setAmt(e.target.value)} inputMode="decimal" placeholder={asset === 'usdc' ? '0.00 USDC' : '0.0 ETH'} /></div>
+      <div className="qr">{qr && <img src={qr} alt="Sepolia payment request QR code" />}</div>
       <div className="note mono">{w.a}</div>
-      <div><label>Request an amount (optional)</label><input value={amt} onChange={(e) => setAmt(e.target.value)} inputMode="decimal" placeholder={`0.0 ${net.sym}`} /></div>
+      <div className="note">{amt ? `Payment request: ${amt} ${asset === 'usdc' ? 'USDC' : 'ETH'} on Ethereum Sepolia` : 'Scan to receive on Ethereum Sepolia'}</div>
       <button className="pri" onClick={() => { navigator.clipboard?.writeText(w.a); toast('Address copied') }}>Copy address</button>
-      <button onClick={() => { navigator.clipboard?.writeText(link); toast('Payment link copied') }}>Copy payment link</button>
-      <p className="mute">Receive SepoliaETH and USDC on Sepolia. Incoming transfers appear in Activity after they are detected. Make sure the sender uses the Sepolia test network.</p>
+      <button onClick={() => { navigator.clipboard?.writeText(link); toast('Payment request copied') }}>Copy payment request</button>
+      <p className="mute">The QR includes the selected Sepolia asset and requested amount. The sender wallet must support Ethereum payment request QR codes.</p>
     </section>
   )
 }
