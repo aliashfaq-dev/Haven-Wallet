@@ -446,3 +446,18 @@ input, select, textarea, button { -webkit-tap-highlight-color: transparent; }
 .tg.on > i {
   transform: translateX(18px);
 }
+
+
+/* Make outgoing activity visibly red and incoming activity green. */
+.activity-send .ico {
+  color: var(--bad);
+  background: color-mix(in srgb, var(--bad) 10%, var(--panel));
+  border-color: color-mix(in srgb, var(--bad) 28%, var(--line));
+}
+.activity-send .r > b { color: var(--bad); }
+.activity-receive .ico {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel));
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--line));
+}
+.activity-receive .r > b { color: var(--accent); }
