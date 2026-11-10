@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { isAddress, getAddress } from 'ethers'
 import { unlockVault, getVault, save, short, changeVaultPassword } from './wallet.js'
 import { Toggle } from './ui.jsx'
+import { clearBiometricSession } from './biometric.js'
 
 export default function Settings({ w, cfg, setCfg, lock, forget, disconnect, contacts, setContacts, toast }) {
   const local = w.mode === 'local'
@@ -18,7 +19,7 @@ export default function Settings({ w, cfg, setCfg, lock, forget, disconnect, con
   const changePassword = async () => {
     if (newPw.length < 8 || newPw !== confirmPw) return toast('New passwords must match and be at least 8 characters')
     setBusy(true)
-    try { await changeVaultPassword(currentPw, newPw); setCurrentPw(''); setNewPw(''); setConfirmPw(''); toast('Wallet password changed. Imported accounts were re-encrypted too.') }
+    try { await changeVaultPassword(currentPw, newPw); clearBiometricSession(); setCurrentPw(''); setNewPw(''); setConfirmPw(''); toast('Wallet password changed. Imported accounts were re-encrypted. Please enable biometrics again.') }
     catch (e) { toast('Could not change wallet password: ' + (e.message || 'error')) }
     finally { setBusy(false) }
   }
