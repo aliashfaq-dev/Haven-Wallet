@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { BrowserProvider, JsonRpcProvider, Contract, Wallet, formatEther, formatUnits } from 'ethers'
-import { NETS, DEFAULT_TOKENS, ERC20, short, load, save, getVault, clearVault, addParams, deriveAt, setVaultCount, usdPrice, rawOf, restoreVaultAccounts, getSavedImported, removeSavedImported } from './wallet.js'
+import { BrowserProvider, JsonRpcProvider, Contract, Wallet, HDNodeWallet, Mnemonic, formatEther, formatUnits } from 'ethers'
+import { NETS, DEFAULT_TOKENS, ERC20, short, load, save, getVault, clearVault, addParams, deriveAt, setVaultCount, usdPrice, rawOf, restoreVaultAccounts, getSavedImported, removeSavedImported, saveImportedAccount } from './wallet.js'
 import { Icon, Logo, Sheet, Seg } from './ui.jsx'
 import { Onboard, Unlock } from './Onboard.jsx'
 import { Send, Receive, ImportToken } from './Screens.jsx'
 import Settings from './Settings.jsx'
-import Accounts from './Accounts.jsx'
+import Accounts, { WalletActions } from './Accounts.jsx'
 import Networks from './Networks.jsx'
 import { scanBlocks } from './live.js'
 
@@ -85,6 +85,44 @@ export default function App() {
   /* ---- accounts ---- */
   const derivedCount = accts ? accts.filter((a) => !imported.includes(a.address)).length : 0
   const addDerived = () => { setAccts([...accts, deriveAt(accts[0], derivedCount)]); if (getVault()) setVaultCount(derivedCount + 1); setIdx(accts.length); toast('Account created') }
+  const createIndependentAccount = async (password) => {
+    const account = Wallet.createRandom()
+    try {
+      await saveImportedAccount(account, password)
+      setAccts((current) => [...current, account])
+      setImported((current) => [...current, account.address])
+      setIdx(accts.length)
+      toast('New account created and encrypted')
+      return true
+    } catch (error) {
+      toast(error.message || 'Could not save the new account')
+      return false
+    }
+  }
+  const importRecoveryPhrase = async (value, password) => {
+    const phrase = value.trim().toLowerCase().replace(/\\s+/g, ' ')
+    if (!Mnemonic.isValidMnemonic(phrase)) {
+      toast('Recovery phrase is invalid. Check the 12 or 24 words and their order.')
+      return false
+    }
+    const account = HDNodeWallet.fromPhrase(phrase)
+    if (accts.some((item) => item.address.toLowerCase() === account.address.toLowerCase())) {
+      toast('This recovery phrase account is already added')
+      return false
+    }
+    try {
+      await saveImportedAccount(account, password)
+      setAccts((current) => [...current, account])
+      setImported((current) => [...current, account.address])
+      setIdx(accts.length)
+      toast('Recovery phrase imported and encrypted')
+      return true
+    } catch (error) {
+      toast(error.message || 'Could not import this recovery phrase')
+      return false
+    }
+  }
+
   const importKey = async (s, password) => {
     s = s.trim()
     if (!/^(0x)?[0-9a-fA-F]{64}$/.test(s)) return toast('Enter a valid 64-character private key')
@@ -320,6 +358,14 @@ export default function App() {
                 {gas && <div className="mute gas"><Icon n="gas" s={14} /> Network fee now: {gas} gwei</div>}
               </div>
               </div><div className="col">
+              <WalletActions
+                mode={mode}
+                canDerive={!!accts?.[0]?.mnemonic}
+                createDerived={addDerived}
+                createIndependent={createIndependentAccount}
+                importRecoveryPhrase={importRecoveryPhrase}
+                toast={toast}
+              />
               <h3>Assets</h3>
               <div className="list">
                 {rows === null ? <div className="skel" /> : shownRows.map((t) => (
