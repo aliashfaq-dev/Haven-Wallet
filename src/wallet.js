@@ -24,6 +24,31 @@ const VAULT = 'orbit:vault'
 export const getVault = () => load(VAULT, null)
 export const clearVault = () => { try { localStorage.removeItem(VAULT) } catch {} }
 export const setVaultCount = (count) => save(VAULT, { ...getVault(), count })
+export const getSavedImported = () => getVault()?.imported || []
+export async function saveImportedAccount(wallet, password) {
+  const vault = getVault()
+  if (!vault?.json) throw new Error('Create or import an encrypted wallet with a password before saving extra accounts.')
+  const encrypted = await encryptKeystoreJson({ address: wallet.address, privateKey: wallet.privateKey }, password, { scrypt: { N: 2 ** 16 } })
+  const imported = [...(vault.imported || [])]
+  if (imported.some((x) => x.address.toLowerCase() === wallet.address.toLowerCase())) throw new Error('That account is already saved.')
+  imported.push({ address: wallet.address, json: encrypted })
+  save(VAULT, { ...vault, imported })
+}
+export async function removeSavedImported(address) {
+  const vault = getVault()
+  if (!vault) return
+  save(VAULT, { ...vault, imported: (vault.imported || []).filter((x) => x.address.toLowerCase() !== address.toLowerCase()) })
+}
+export async function restoreVaultAccounts(root, password) {
+  const vault = getVault()
+  const extra = []
+  for (const item of vault?.imported || []) {
+    const wallet = await Wallet.fromEncryptedJson(item.json, password)
+    if (wallet.address.toLowerCase() !== item.address.toLowerCase()) throw new Error('Saved account integrity check failed.')
+    extra.push(wallet)
+  }
+  return [...deriveAccounts(root, vault?.count || 1), ...extra]
+}
 
 export async function createVault(wal, password, progressCallback) {
   const account = {
