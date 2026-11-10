@@ -400,3 +400,49 @@ input, select, textarea, button { -webkit-tap-highlight-color: transparent; }
 .setting-toggle > span { width: 100%; }
 .setting-toggle .tg { align-self: center; flex: 0 0 auto; }
 .setting-toggle small { display: inline-block; margin-top: 4px; }
+
+
+/* Keep toggle switches dimensionally stable across desktop and mobile layouts. */
+.tg {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  position: relative;
+  display: inline-flex !important;
+  flex: 0 0 42px !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  width: 42px !important;
+  min-width: 42px !important;
+  max-width: 42px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  max-height: 24px !important;
+  margin: 0;
+  padding: 2px !important;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  line-height: 1;
+  vertical-align: middle;
+  transform: none;
+}
+.tg > i {
+  box-sizing: border-box;
+  display: block;
+  flex: 0 0 20px;
+  width: 20px;
+  min-width: 20px;
+  max-width: 20px;
+  height: 20px;
+  min-height: 20px;
+  max-height: 20px;
+  aspect-ratio: 1 / 1;
+  margin: 0;
+  border-radius: 50%;
+  transform: translateX(0);
+  transition: transform .2s ease;
+}
+.tg.on > i {
+  transform: translateX(18px);
+}
