@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { createVault,  useState, useEffect, useCallback, useRef } from 'react'
 import { BrowserProvider, JsonRpcProvider, Contract, Wallet, HDNodeWallet, Mnemonic, formatEther, formatUnits } from 'ethers'
 import { NETS, DEFAULT_TOKENS, ERC20, short, load, save, getVault, clearVault, addParams, deriveAt, setVaultCount, usdPrice, rawOf, restoreVaultAccounts, getSavedImported, removeSavedImported, saveImportedAccount } from './wallet.js'
 import { Icon, Logo, Sheet, Seg } from './ui.jsx'
@@ -88,6 +88,7 @@ export default function App() {
   const createIndependentAccount = async (password) => {
     const account = Wallet.createRandom()
     try {
+      if (!getVault()) await createVault(accts[0], password)
       await saveImportedAccount(account, password)
       setAccts((current) => [...current, account])
       setImported((current) => [...current, account.address])
@@ -111,6 +112,7 @@ export default function App() {
       return false
     }
     try {
+      if (!getVault()) await createVault(accts[0], password)
       await saveImportedAccount(account, password)
       setAccts((current) => [...current, account])
       setImported((current) => [...current, account.address])
@@ -130,10 +132,9 @@ export default function App() {
     if (accts.some((x) => x.address === a.address)) return toast('That account is already added')
     try {
       await (async () => {
-        if (getVault()) {
-          const { saveImportedAccount } = await import('./wallet.js')
-          await saveImportedAccount(a, password)
-        } else throw new Error('Extra account saving requires an encrypted wallet. Import or create a wallet with a password first.')
+        const { createVault, saveImportedAccount } = await import('./wallet.js')
+        if (!getVault()) await createVault(accts[0], password)
+        await saveImportedAccount(a, password)
       })()
     } catch (e) { toast(e.message); return false }
     setAccts([...accts, a]); setImported([...imported, a.address]); setIdx(accts.length); toast('Account saved securely'); return true
@@ -443,7 +444,7 @@ export default function App() {
               <button onClick={() => copy(selTx.hash, 'Hash copied')}><Icon n="copy" s={16} /> Copy hash</button>
               {NETS[selTx.chain]?.scan && <a className="btnlink" href={`${NETS[selTx.chain].scan}/tx/${selTx.hash}`} target="_blank" rel="noopener noreferrer"><Icon n="ext" s={16} /> Explorer</a>}
             </div>
-            {selTx.token && !allTokens.some((t) => t.address.toLowerCase() === selTx.token.address.toLowerCase()) && <button onClick={() => { const l = [...custom, { address: selTx.token.address, symbol: selTx.sym, decimals: selTx.token.decimals }]; setCustom(l); save('tok:' + w.chain, l); setSelTx(null); toast(selTx.sym + ' added to assets') }}><Icon n="plus" s={16} /> Add {selTx.sym} to assets</button>}
+            {selTx.token && !tokens.some((t) => t.address.toLowerCase() === selTx.token.address.toLowerCase()) && <button onClick={() => { const l = custom.some((t) => t.address.toLowerCase() === selTx.token.address.toLowerCase()) ? custom : [...custom, { address: selTx.token.address, symbol: selTx.sym, decimals: selTx.token.decimals }]; setCustom(l); save('tok:' + w.chain, l); setSelTx(null); toast(selTx.sym + ' added to assets') }}><Icon n="plus" s={16} /> Add {selTx.sym} to assets</button>}
             {selTx.st === 'Pending' && selTx.raw && <div className="inrow"><button className="pri" onClick={() => replaceTx(selTx, false)}>Speed up</button><button className="danger" onClick={() => replaceTx(selTx, true)}>Cancel</button></div>}
           </>}
         </Sheet>
