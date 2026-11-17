@@ -39,7 +39,7 @@ export default function Accounts({ w, sym, mode, accts, idx, setIdx, names, setN
       <div className="group"><h3>Import account</h3>
         <p className="mute">Imported accounts are encrypted with your wallet password and restored whenever you unlock this wallet.</p>
         <div className="inrow"><input type="password" autoComplete="off" value={pk} onChange={(e) => setPk(e.target.value)} placeholder="Private key" /><button disabled={!pk.trim()} onClick={() => setImportGate(true)}>Import and save</button></div></div>
-      <Gate open={importGate} onClose={() => setImportGate(false)} toast={toast} why="Confirm your wallet password to encrypt and save this account." onPass={async (password) => { const ok = await importKey(pk, password); if (ok) setPk(''); setImportGate(false) }} />
+      <Gate open={importGate} onClose={() => setImportGate(false)} toast={toast} why="Confirm your wallet password to encrypt and save this account." allowCreate onPass={async (password) => { const ok = await importKey(pk, password); if (ok) setPk(''); setImportGate(false) }} />
       <Gate open={gate !== null} onClose={() => setGate(null)} toast={toast} why="Enter your password to view this private key." onPass={() => { setKeyOf(gate); setGate(null); setAck(false) }} />
       <Sheet open={keyOf !== null} onClose={() => { setKeyOf(null); setAck(false) }}>
         {keyOf !== null && <>
@@ -124,6 +124,7 @@ export function WalletActions({ mode, canDerive, createDerived, createIndependen
         why={gateAction === 'create'
           ? 'Confirm your wallet password to create and encrypt a new independent account.'
           : 'Confirm your wallet password to encrypt and save this recovery phrase.'}
+        allowCreate
         onPass={confirm}
       />
     </div>
