@@ -1,6 +1,6 @@
-import { createVault,  useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { BrowserProvider, JsonRpcProvider, Contract, Wallet, HDNodeWallet, Mnemonic, formatEther, formatUnits } from 'ethers'
-import { NETS, DEFAULT_TOKENS, ERC20, short, load, save, getVault, clearVault, addParams, deriveAt, setVaultCount, usdPrice, rawOf, restoreVaultAccounts, getSavedImported, removeSavedImported, saveImportedAccount } from './wallet.js'
+import { NETS, DEFAULT_TOKENS, ERC20, short, load, save, getVault, clearVault, addParams, deriveAt, setVaultCount, usdPrice, rawOf, restoreVaultAccounts, getSavedImported, removeSavedImported, saveImportedAccount, createVault } from './wallet.js'
 import { Icon, Logo, Sheet, Seg } from './ui.jsx'
 import { Onboard, Unlock } from './Onboard.jsx'
 import { Send, Receive, ImportToken } from './Screens.jsx'
